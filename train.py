@@ -99,6 +99,8 @@ def train(gd = "/content/gdrive/MyDrive/data") :
   for epoch in range(50):  # loop over the dataset multiple times
     EKOX(epoch)
     running_loss = 0.0
+    model.train()
+    model = model.to(device)
     for i, data in enumerate(train_loader, 0):
         # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
@@ -123,7 +125,7 @@ def train(gd = "/content/gdrive/MyDrive/data") :
     with torch.no_grad():
       for data in test_loader:
         images, labels = data
-        inputs, labels = inputs.to(device), labels.to(device)
+        images, labels = images.to(device), labels.to(device)
         # calculate outputs by running images through the network
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
@@ -133,6 +135,7 @@ def train(gd = "/content/gdrive/MyDrive/data") :
     EKOT(f'Accuracy of the network  test images: {100 * correct // total} %')
 
     torch.save(model.state_dict(), os.path.join(gd, "vegetables_%03d.cpt" % epoch))
+    model = model.to('cpu')
     model.eval()
     x = torch.randn(BATCH_SIZE, 3, 224, 224, requires_grad=True)
     torch_out = model(x)
