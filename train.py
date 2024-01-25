@@ -1,29 +1,31 @@
 from utillc import *
 import os, glob
+import argparse
+import time
+
 import torchvision
 import torchvision.datasets
 from torchvision.datasets import *
 import torch
-import matplotlib
-import matplotlib.pyplot as plt
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
-
-import argparse
+import torch.onnx
 import torch.nn as nn
 import torch.optim as optim
-import time
-from torchvision.models import resnet50, ResNet50_Weights, mobilenet_v2
+from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import mobilenet_v2
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
 print_everything()
+EKOX(torch.__version__)
 
-
-BATCH_SIZE=4
+BATCH_SIZE=32
 EKO()
-def train(root = "/content/gdrive/MyDrive/data/Vegetable Images") :
+def train(gd = "/content/gdrive/MyDrive/data") : 
+  root = os.path.join(gd, "Vegetable Images")
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   EKOX(device)
   train_transform = transforms.Compose([
@@ -50,19 +52,21 @@ def train(root = "/content/gdrive/MyDrive/data/Vegetable Images") :
 
   ds_train = ImageFolder(os.path.join(root, 'train'),
                 transform=train_transform)
-  ds_test = ImageFolder(os.path.join(root, 'test'))
+  ds_test = ImageFolder(os.path.join(root, 'test'),
+                transform=valid_transform)
   ds_valid = ImageFolder(os.path.join(root, 'validation'),
                 transform=valid_transform)
 
   train_loader = torch.utils.data.DataLoader(ds_train, 
           batch_size=BATCH_SIZE, shuffle=True,
           num_workers=4, pin_memory=True)
-  test_loader = torch.utils.data.DataLoader(ds_test)
+  test_loader = torch.utils.data.DataLoader(ds_test, 
+          batch_size=BATCH_SIZE, shuffle=True,
+          num_workers=4, pin_memory=True)
   valid_loadr = torch.utils.data.DataLoader(ds_valid, 
           batch_size=BATCH_SIZE, shuffle=True,
           num_workers=4, pin_memory=True)
   EKO()
-  model = mobilenet_v2().to(device)
   #EKOX(model)
 
   def imshow(img):
@@ -73,6 +77,11 @@ def train(root = "/content/gdrive/MyDrive/data/Vegetable Images") :
 
   classes = list(map(os.path.basename, glob.glob(os.path.join(root, "test", "*"))))
   EKOX(classes)
+  nmb_classes = len(classes)
+  model = mobilenet_v2(weights="DEFAULT")
+  model.fc = nn.Linear(1000, nmb_classes)
+  model = mobilenet_v2().to(device)
+
   # get some random training images
   dataiter = iter(train_loader)
   images, labels = next(dataiter)
@@ -114,6 +123,7 @@ def train(root = "/content/gdrive/MyDrive/data/Vegetable Images") :
     with torch.no_grad():
       for data in test_loader:
         images, labels = data
+        inputs, labels = inputs.to(device), labels.to(device)
         # calculate outputs by running images through the network
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
@@ -121,4 +131,20 @@ def train(root = "/content/gdrive/MyDrive/data/Vegetable Images") :
         correct += (predicted == labels).sum().item()
 
     EKOT(f'Accuracy of the network  test images: {100 * correct // total} %')
+
+    torch.save(model.state_dict(), os.path.join(gd, "vegetables_%03d.cpt" % epoch))
+    model.eval()
+    x = torch.randn(BATCH_SIZE, 3, 224, 224, requires_grad=True)
+    torch_out = model(x)
+    torch.onnx.export(model,
+                  x,                        
+                  os.path.join(gd, "vegetables_%03d.onnx" % epoch),
+                  export_params=True, 
+                  opset_version=10,
+                  do_constant_folding=True, 
+                  input_names = ['input'],  
+                  output_names = ['output'],
+                  dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
+                                'output' : {0 : 'batch_size'}})
+
 
