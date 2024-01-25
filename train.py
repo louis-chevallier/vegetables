@@ -1,5 +1,5 @@
 from utillc import *
-import os, glob
+import os, glob, sys
 import argparse
 import time
 
@@ -92,9 +92,11 @@ class Vegetable :
     nmb_classes = len(classes)
     self.classes = classes
     model = mobilenet_v2(weights="DEFAULT")
-    model.fc = nn.Linear(1000, nmb_classes)
+    #EKOX(model)
+    model.classifier = nn.Sequential(
+      nn.Dropout(p=0.2),
+      nn.Linear(1280, nmb_classes))
     model = model.to(device)
-
     # get some random training images
     dataiter = iter(train_loader)
     images, labels = next(dataiter)
@@ -143,13 +145,18 @@ class Vegetable :
     i = self.valid_transform(image)[None, ...]
     EKOX(i.shape)
     images = i.to(self.device)
-    EKOX(model)
-    outputs = model(images)
+    #EKOX(model)
+    model.eval()
+    with torch.no_grad():    
+      outputs = model(images)
     _, predicted = torch.max(outputs.data, 1)
     EKOX(outputs.shape)
+    EKOX(outputs)
     EKOX(predicted)
     label = predicted.to('cpu').numpy()[0]
-    EKOX(outputs.data[label])
+    EKOX(label)
+    EKOX(outputs.data.shape)
+    EKOX(outputs.data[0, label])
     EKOX(label)
     EKOX(self.idx_to_class[label])
     
@@ -212,7 +219,8 @@ def test(gd = "/content/gdrive/MyDrive/data") :
   v.test(46)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
-  v = Vegetable(gd, gpu=False)
-  model = v.test(measure=False, disp=False)
+  v = Vegetable(gd, gpu=True)
+  model = v.test(measure=True, disp=False)
+  model.eval()
   v.predict(model, Image.open('brocoli.jpg'))
   v.predict(model, Image.open('concombre.jpg'))

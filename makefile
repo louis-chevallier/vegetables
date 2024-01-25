@@ -2,6 +2,7 @@
 start :
 #	python -c 'import train; train.train("/mnt/hd1/data")'
 #	python -c 'import train; train.test("/mnt/hd1/data")'
+	python -c 'import train; train.predict("/mnt/hd1/data")'
 
 
 
