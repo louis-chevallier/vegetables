@@ -1,0 +1,79 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Demo - Capture Photo From Webcam Using Javascript</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<style type="text/css">
+
+button {
+    width: 120px;
+    padding: 10px;
+    display: block;
+    margin: 20px auto;
+    border: 2px solid #111111;
+    cursor: pointer;
+    background-color: white;
+}
+
+#start-camera {
+    margin-top: 50px;
+}
+
+#video {
+    display: none;
+    margin: 50px auto 0 auto;
+}
+
+#click-photo {
+    display: none;
+}
+
+#dataurl-container {
+    display: none;
+}
+
+#canvas {
+    display: block;
+    margin: 0 auto 20px auto;
+}
+
+#dataurl-header {
+    text-align: center;
+    font-size: 15px;
+}
+
+#dataurl {
+    display: block;
+    height: 50px;
+    width: 320px;
+    margin: 10px auto;
+    resize: none;
+    outline: none;
+    border: 1px solid #111111;
+    padding: 5px;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+</style>
+</head>
+
+<body>
+  <script src="lclog.js" charset="utf-8"></script>    
+  <script type="module" src='./contenu.js'>    </script>
+  
+  <button id="start-camera">Start Camera</button>
+  <video id="video" width="224" height="224" autoplay></video>
+  <button id="click-photo">Identify</button>
+  <textarea id="dataurl" readonly></textarea>
+
+  <div id="dataurl-container">
+    <canvas hidden="hidden"  id="canvas" width="320" height="240"></canvas>
+    <div id="dataurl-header">Image Data URL</div>
+  </div>
+
+
+</body>
+</html>
