@@ -2,7 +2,8 @@
 start :
 #	python -c 'import train; train.train("/mnt/hd1/data")'
 #	python -c 'import train; train.test("/mnt/hd1/data")'
-	python -c 'import train; train.predict("/mnt/hd1/data")'
+#	python -c 'import train; train.predict("/mnt/hd1/data")'
+	python -c 'import server; server.go("/mnt/hd1/data")'
 
 
 
@@ -15,4 +16,7 @@ commit_push :
 	git push --set-upstream origin main
 
 
-
+key :
+# https://docs.cherrypy.dev/en/latest/deploy.html
+	openssl genrsa -out privkey.pem 2048
+	openssl req -new -x509 -days 365 -key privkey.pem -out cert.pem

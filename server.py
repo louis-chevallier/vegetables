@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# https://usefulangle.com/post/352/javascript-capture-image-from-camera
 
 import os, gc, sys
+import os, json, base64
 import shutil
 from utillc import *
 import cherrypy
 import threading
 import queue
 import json, pickle
-from iterative_fit import OBJPATH
 import time
 import time as _time
 from time import gmtime, strftime
@@ -17,9 +18,12 @@ from datetime import timedelta
 import PIL
 from PIL import Image
 import os
+from urllib.parse import urlparse
+
+import train
 
 fileDir = os.path.dirname(os.path.abspath(__file__))
-rootDir = os.path.join(fileDir, 'www/test')
+rootDir = os.path.join(fileDir, '.')
 EKOX(rootDir)
 
 port = 8080
@@ -40,13 +44,17 @@ config = {
 
     },
   'global' : {
+      'server.ssl_module' : 'builtin',
+      'server.ssl_certificate' : "cert.pem",
+      'server.ssl_private_key' : "privkey.pem",
+      
       'server.socket_host' : '0.0.0.0', #192.168.1.5', #'127.0.0.1',
       'server.socket_port' : port,
       'server.thread_pool' : 8,
-      'log.screen': False, #True,
+      'log.screen': False,
       'log.error_file': './error.log',
       'log.access_file': './access.log'
-  }
+  },
 }
 
 dirphotos = "/tmp/photos_%s" % os.environ["USER"]
@@ -92,6 +100,8 @@ class Reconstructor(threading.Thread):
             except Exception as e :
                 EKOX(e, n=WARNING)
         EKO()
+
+        
         
     def process(self) -> bool :
         self.running = False
@@ -115,176 +125,32 @@ class App:
     """
     the Webserver
     """
-    def __init__(self, args) :
+    def __init__(self, gd) :
         EKOT("app init")
-        self.queue = queue.Queue(maxsize=50)
-        self.reconstructor = Reconstructor(self, args)
-        EKO()
-        self.reconstructor.start()
-        EKO()
         self.no_image = 0
-        self.resetImageCounter()
-        self.fitting_active = False
-        self.args = args
-        EKO()
-        
-    def info(self) :
-        return self.args.gitinfo
+        self.gd = gd
+        v = self.vegetable = train.Vegetable(gd, gpu=True)
+        model = v.test(measure=False, disp=False)
+        model.eval()
+        self.out = open("test.jpg", "wb")
         
     @cherrypy.expose
     def main(self):
         EKOT("REQ main")
-        with open('www/test/main.html', 'r') as file:
+        with open('./main.html', 'r') as file:
             data = file.read()
             data = data.replace("INFO", self.info())
             return data
-        
+
     @cherrypy.expose
-    def config(self):
-        """
-        - to configure the reconstruction
-        - POST 
-        - params : 
-          - quality  : float 0. - 1.
-          - active : 1/0 
-        - return : { 'status' : OK/FAILED }
-        """
-        EKOT("REQ config")
-        try :
-            quality = 1.
-            try :
-                EKOX(cherrypy.request.headers.keys())
-                active = os.path.basename(cherrypy.request.headers['x-active'])
-                EKOX(active)
-                squality = os.path.basename(cherrypy.request.headers['x-quality'])
-                quality = float(squality)
-            except Exception as e:
-                EKOX(e)
-                pass
-            if self.reconstructor.fitting is not None :
-                self.reconstructor.fitting.args.cycles = quality
-            EKOX(quality)
-            self.queue.put({
-                'config' : {
-                    "active" : active,
-                    'quality' : quality,
-                }} )
-
-            rep = "set to %f" % quality
-            #EKOX(rep)
-            rep = { STATUS : OK,
-                    "quality" : quality }
-        except Exception as e :
-            rep = { STATUS : FAILED}
-            EKOX(e)
-        EKOX(rep)
-        return json.dumps(rep)
-        
-    @cherrypy.expose
-    def progress(self):
-        """
-        - to get info on on going calculation
-        - GET 
-        - params : 
-          - 
-        - return dict :
-          - 'status' : OK/FAILED,
-          - 'message' : info
-          - 'radic' : radical of result video
-          - 'uploaded' : number of uploaded images so far
-          - 'active' : 0/1 : indicate reconstruction status ( real/fake )
-        }
-        """
-        
-        #EKOT("REQ progress")
-        #EKOX(cherrypy.request.remote.ip)
-        d = {}
-        try :
-            #EKOX( self.reconstructor.queue.empty())
-            ln = int(100 * len(self.reconstructor.progress) / self.reconstructor.total)
-            d = { "progress" : ln }
-            #EKOX(d)
-            #EKOX(self.queue.qsize())            
-            d["message"] = ""
-            #d["bar"] = str("=") * ln + str("_") * (100 - ln)
-            if not self.reconstructor.queue.empty() :
-                EKO()
-                rep = self.reconstructor.queue.get()
-                op = OBJPATH
-                cjf = "computation_just_finished"
-                if cjf in rep :
-                    d[cjf] = 1                
-                if op in rep :
-                    d[op] = rep[op]
-                if STATUS in rep :
-                    a = rep[STATUS] == "active"
-                    self.fitting_active = d["active"] = a
-                EKOX(d)
-                
-            d[OBJPATH] = self.reconstructor.last_objpath
-                
-            d["images_uploaded"] = self.no_image
-            d["running"] = self.reconstructor.running
-
-            #fitting_active = self.reconstructor.fitting is not None 
-            
-            d["message"] = self.reconstructor.computationTime
-            d["message"] += (", images uploaded : %d " % self.no_image)
-            d["message"] += ", real reconstructor active=%d" % self.fitting_active
-            d["message"] += ", radic=%d" % self.reconstructor.radic
-            d["radic"] = self.reconstructor.radic
-            d["active"] = self.fitting_active
-            d["uploaded"] = self.no_image
-            #EKOX(d)
-
-        except Exception as e  :
-            EKOX(e)
-            d = { STATUS : FAILED }
-        #EKO()
-        s = json.dumps(d)
-        #EKOX(s)
-        return s
-    
-    #@cherrypy.expose
-    def indexXX(self):
+    def log(self, data=None) :
         EKO()
-        with open('www/test/page.html', 'r') as file:
-            data = file.read()
-            return data
-        
+        p = urlparse(data);
+        rp = os.path.relpath(p.path, start = "/")
+        print(rp)
+   
     @cherrypy.expose
-    def runOnPhoto(self):
-        ''' launch the reconstruction (from photo since, when uploading a video, the reconstruction is launched automatically)
-        '''
-        EKOT("REQ runPhotos")
-
-        if self.reconstructor.running :
-            EKOT("RECONSTRUCTION STILL ON GOING!!!", n=WARNING)
-        
-        self.queue.put({ 'run_photos' : True } )
-        EKOX(self.queue.qsize())
-        rep = { STATUS : OK }
-        EKOX(rep)
-        return json.dumps(rep)
-
-    @cherrypy.expose
-    def resetImageCounter(self):
-        ''' 
-        '''
-        self.no_image = 0
-        EKOT("REQ resetImageCounter")
-        try :
-            shutil.rmtree(dirphotos)
-        except :
-            pass
-        os.makedirs(dirphotos, exist_ok=True)
-        os.makedirs(tmpphotos, exist_ok=True)
-        rep = { STATUS : OK }
-        EKOX(rep)
-        return json.dumps(rep)
-        
-    @cherrypy.expose
-    def uploadPhoto(self, ufile):
+    def get_photo(self, ufile):
         '''receive a picture
         '''
         EKOT("REQ uploadPhoto")
@@ -309,26 +175,16 @@ class App:
                     out.write(data)
                     size += len(data)
             EKOX("done %d" % size)
-            """
-            with open(destination, 'wb') as f:
-                EKOX(f)
-                ff = body
-                shutil.copyfileobj(ff, f)
-                #EKO()
-            """
-            EKOX(ext)
             dd = os.path.join(dirphotos, "image_%04d%s" % (self.no_image, ext))
             EKOX(dd)
             os.makedirs(dirphotos, exist_ok=True)
             shutil.copyfile(destination, dd)
-
-            
             EKOX(self.no_image)
             self.no_image += 1
             rep = { STATUS : OK }
             try :
                 image = Image.open(dd)
-                EKOT("good image")
+                self.vegetable.predict(self.model, image)
             except Exception as e:
                 EKOX(e)
                 rep = { STATUS : FAILED }
@@ -338,7 +194,29 @@ class App:
             rep = { STATUS : FAILED }
         EKOX(rep)
         return json.dumps(rep)
-        
+
+    @cherrypy.expose
+    def chunk(self, data=None) :
+        EKOT("received chunk")
+        #EKOX(data);
+        try :
+            body = cherrypy.request.body.read()
+            EKOX(len(body));
+            c = json.loads(body)
+            d = c["chunk"]
+            EKOX(len(d))
+            e = base64.b64decode(d)
+            EKOX(len(e))
+            self.out.write(e)
+            EKOT("written")
+        except Exception as e :
+            EKOX(e)
+        ans =  json.dumps({"a" : 1})
+        EKOX(ans)
+        return ans
+
+
+    
     @cherrypy.expose
     def exit(self):
         EKOT("REQ exit")
@@ -346,44 +224,15 @@ class App:
         #sys.exit(0)
         cherrypy.engine.exit()
 
-        
-    @cherrypy.expose
-    def upload(self):
-        '''Handle non-multipart upload'''
-        EKOT("REQ uploading")
-        def findnewfile() :
-            for i in range(10000) :
-                rt = self.reconstructor.args.dataroot
-                pp = os.path.join(rt, "sequences/video_%05d.mp4" % i)
-                if not os.path.exists(pp) :
-                    return pp
-        
-        filename  = os.path.basename(cherrypy.request.headers['X_Filename'])
-        destination = os.path.join(tmpphotos, filename)
-        EKOX(destination)
-        EKOX(cherrypy.request.body)
-        EKOX(findnewfile())
-        with open(destination, 'wb') as f:
-            shutil.copyfileobj(cherrypy.request.body, f)
-        #EKO()
-        shutil.copyfile(destination, findnewfile())
-        EKOT("done, file copied locally")
-        self.queue.put({ 'file' : destination} )
-        EKO()
-        rep = { STATUS : OK }        
-        return json.dumps(rep)
+
         
 config2 = {
     "dry" : (False, " true : will not run the reconstructor"),
     "gitinfo" : "info"
 }
 
-if __name__ == '__main__':
-
-    args = process.parse()
-    args = process.parse(vars(args), config2)
-    args = process.parse(vars(args), iterative_fit.config(args), end=True)
-    app = App(args)
+def go(gd = "/content/gdrive/MyDrive/data") :
+    app = App(gd)
     cherrypy.log.error_log.propagate = False
     cherrypy.log.access_log.propagate = False
     EKO()
