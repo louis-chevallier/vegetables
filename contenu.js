@@ -39,71 +39,8 @@ function trace(txt) {
     document.getElementById("json").innerHTML  =  date() + txt + "<br>" + t;        
 }
 
-function doGo() {
-    let murl = "/process";
-    //console.log("fetching");
-    fetch(murl).then(function(response) {
-        console.log("response");
-        let d = response.json();
-        console.log(d);
-        return d;
-    }).then(function(data) {
-        trace(" /runOnPhoto response=" + JSON.stringify(data))
-    })
-}
 
 
-
-
-function activate(b)
-{
-    console.log('b', b);
-    const req1 = new XMLHttpRequest();
-    req1.open("POST", "/config", true);
-    req1.setRequestHeader('X-active', b);
-    console.log('sending', b);
-    req1.send();
-    trace(" /config active= " + b)
-
-}
-
-function uploadPhoto(file)
-{
-    
-    var xhr = new XMLHttpRequest();
-    console.log("uploading photo");
-    var photoselect = document.getElementById("photoselect")
-    photoselect.disabled = true
-    console.log('uploading photo ..');
-
-
-    let formData = new FormData(); // creates an object, optionally fill from <form>
-    formData.append("ufile", file.name); // appends a field
-    
-    xhr.upload.addEventListener('progress', function(event) 
-                                {
-                                    console.log('progress uploading', file.name, event.loaded, event.total);
-                                });
-    xhr.addEventListener('readystatechange', function(event) 
-                         {
-                             console.log(
-                                 'ready state', 
-                                 file.name, 
-                                 xhr.readyState, 
-                                 xhr.readyState == 4 && xhr.status
-                             );
-                             photoselect.disabled = false                             
-                         });
-    console.log("posting ...")
-    xhr.open('POST', '/uploadPhoto', true);
-    xhr.setRequestHeader('X_Filename', file.name);
-    xhr.setRequestHeader("Content-Type", "multipart/form-data")
-    xhr.send(formData)    
-    console.log('sending', file.name, file);
-    //xhr.send(file)
-    trace(" /uploadPhoto filename=" + file.name)
-    
-}
 
 var selectPhoto = document.getElementById('photoselect');
 var formPhoto   = document.getElementById('uploadPhoto')
@@ -121,15 +58,24 @@ let click_button = document.querySelector("#click-photo");
 let canvas = document.querySelector("#canvas");
 let dataurl = document.querySelector("#dataurl");
 let dataurl_container = document.querySelector("#dataurl-container");
+canvas.hidden = true;    
+camera_button.addEventListener('click', start_cam)
 
-camera_button.addEventListener('click', async function() {
-   	let stream = null;
+async function start_cam() {
+    EKOX("starting camera");
+    let stream = null;
     try {
-    	stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    	stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact : 'environment' }},
+                                                             audio: false });
     }
     catch(error) {
-    	alert(error.message);
-    	return;
+        try {
+    	    stream = await navigator.mediaDevices.getUserMedia({ video: true,
+                                                                 audio: false });
+        }  catch (error1) {
+    	    alert(error1.message);
+    	    return;
+        }
     }
 
     video.srcObject = stream;
@@ -138,14 +84,15 @@ camera_button.addEventListener('click', async function() {
     camera_button.style.display = 'none';
     click_button.style.display = 'block';
     EKOX("camera started");
-});
+};
 
 async function send_photo() {
-    EKOX("sending");
+    EKOX("read image ");
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     let image_data_url = canvas.toDataURL('image/jpeg');
     let data = JSON.stringify({image: image_data_url});
     const chunk = data.split(',').pop()
+    EKOX("fetching");
     const response = await fetch('chunk', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -153,11 +100,9 @@ async function send_photo() {
             chunk: chunk
         })
     })
-    EKOX('fetching');
-    const json = await response
-    EKOX(json)
-    const j = json.json();
-    EKOX(j)
+    EKOX('fetched');
+    const json = await response.json();
+    EKOX(json.status)
     /*
     var httpPost = new XMLHttpRequest()
     //httpPost.setHeader('Content-Type', 'application/json');
@@ -165,8 +110,12 @@ async function send_photo() {
     httpPost.send(data);
     EKOX("sent");
     */
-    dataurl.value = image_data_url;
+    if (json.status == "ok")  {
+        dataurl.value = json.name + " p=" + json.probability;
+    }
+    //dataurl.value = image_data_url;
     dataurl_container.style.display = 'block';
+
 };
 EKOX("starting");
 click_button.addEventListener('click', send_photo)

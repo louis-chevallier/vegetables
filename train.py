@@ -117,6 +117,9 @@ class Vegetable :
 
   
   def test(self, epoch=33, measure=True, disp=False) :
+    """
+    measure : faire le calcul de l'accuracy
+    """
     model, train_loader, test_loader, valid_loader = self.load(disp=disp)
     self.read(epoch, model)
     if measure :
@@ -125,40 +128,56 @@ class Vegetable :
     return model
   
   def measure(self, loader, model) :
-      device = self.device
-      correct = 0
-      total = 0
-      EKOT(len(loader))
-      with torch.no_grad():
-        for data in loader:
-          images, labels = data
-          images, labels = images.to(device), labels.to(device)
-          # calculate outputs by running images through the network
-          outputs = model(images)
-          _, predicted = torch.max(outputs.data, 1)
-          total += labels.size(0)
-          correct += (predicted == labels).sum().item()
-
-      EKOT(f'Accuracy of the network  test images: {100 * correct // total} %')
+    n = len(self.classes)
+    table = np.zeros((n, n))
+    device = self.device
+    correct = 0
+    total = 0
+    EKOT(len(loader))
+    with torch.no_grad():
+      for data in loader:
+        images, labels = data
+        images, labels = images.to(device), labels.to(device)
+        # calculate outputs by running images through the network
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        #EKOX(outputs.data.shape)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+        for i, pred in enumerate(outputs.data) :
+          true_label = labels[i].cpu().numpy()
+          #EKOX(true_label)
+          #EKOX(pred)
+          #EKOX(int(torch.max(pred, 0).indices))
+          table[true_label, int(torch.max(pred, 0).indices)] += 1
+          
+        
+    EKOX(table)
+    EKOT(f'Accuracy of the network  test images: {100 * correct // total} %')
 
   def predict(self, model, image) :
     i = self.valid_transform(image)[None, ...]
-    EKOX(i.shape)
+    #EKOX(i.shape)
     images = i.to(self.device)
     #EKOX(model)
     model.eval()
     with torch.no_grad():    
       outputs = model(images)
     _, predicted = torch.max(outputs.data, 1)
-    EKOX(outputs.shape)
+    #EKOX(outputs.shape)
     EKOX(outputs)
-    EKOX(predicted)
+    EKOX(torch.log(outputs))
+    EKOX(torch.nn.functional.softmax(outputs, dim=1))
+    
+    #EKOX(predicted)
     label = predicted.to('cpu').numpy()[0]
     EKOX(label)
-    EKOX(outputs.data.shape)
-    EKOX(outputs.data[0, label])
-    EKOX(label)
+    prob = torch.nn.functional.softmax(outputs, dim=1)[0, label]
+    #EKOX(outputs.data.shape)
+    #EKOX(outputs.data[0, label])
+    #EKOX(label)
     EKOX(self.idx_to_class[label])
+    return label, outputs.data.cpu().numpy(), prob
     
   def train(self) :
     gd = self.gd
@@ -224,3 +243,13 @@ def predict(gd = "/content/gdrive/MyDrive/data") :
   model.eval()
   v.predict(model, Image.open('brocoli.jpg'))
   v.predict(model, Image.open('concombre.jpg'))
+
+  for ii in range(7) :
+    f = "/mnt/NUC/data/test/test_%04d.jpg" % ii
+    v.predict(model, Image.open(f))
+
+
+
+  
+
+

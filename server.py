@@ -130,76 +130,38 @@ class App:
         self.no_image = 0
         self.gd = gd
         v = self.vegetable = train.Vegetable(gd, gpu=True)
-        model = v.test(measure=False, disp=False)
+        self.model = model = v.test(measure=False, disp=False)
         model.eval()
-        self.out = open("test.jpg", "wb")
+        v.predict(model, Image.open('brocoli.jpg'))
+        
+    def info(self) :
+        return "xxx"
         
     @cherrypy.expose
-    def main(self):
+    def index(self):
         EKOT("REQ main")
         with open('./main.html', 'r') as file:
+            EKOT("main")
             data = file.read()
             data = data.replace("INFO", self.info())
             return data
 
     @cherrypy.expose
     def log(self, data=None) :
-        EKO()
+        #EKO()
         p = urlparse(data);
         rp = os.path.relpath(p.path, start = "/")
         print(rp)
    
-    @cherrypy.expose
-    def get_photo(self, ufile):
-        '''receive a picture
-        '''
-        EKOT("REQ uploadPhoto")
-        try :
-            #filename  = os.path.basename(cherrypy.request.headers['x-filename'])
-            #EKOX(dir(cherrypy.request))
-            #EKOX(cherrypy.request.body)
-            body = cherrypy.request.body
-            EKOX(body)
-            filename = ufile.filename
-            EKOX(filename)
-            destination = os.path.join(tmpphotos, filename)
-            EKOX(destination)
-            ext = os.path.splitext(filename)[1]
-            size = 0
-            with open(destination, 'wb') as out:
-                while True:
-                    data = ufile.file.read(8192)
-                    #EKOX(len(data))
-                    if not data:
-                        break
-                    out.write(data)
-                    size += len(data)
-            EKOX("done %d" % size)
-            dd = os.path.join(dirphotos, "image_%04d%s" % (self.no_image, ext))
-            EKOX(dd)
-            os.makedirs(dirphotos, exist_ok=True)
-            shutil.copyfile(destination, dd)
-            EKOX(self.no_image)
-            self.no_image += 1
-            rep = { STATUS : OK }
-            try :
-                image = Image.open(dd)
-                self.vegetable.predict(self.model, image)
-            except Exception as e:
-                EKOX(e)
-                rep = { STATUS : FAILED }
-            
-        except Exception as e :
-            EKOX(e)
-            rep = { STATUS : FAILED }
-        EKOX(rep)
-        return json.dumps(rep)
 
     @cherrypy.expose
     def chunk(self, data=None) :
         EKOT("received chunk")
         #EKOX(data);
         try :
+            fn = "test_%04d.jpg" % self.no_image
+            self.no_image += 1
+            self.out = open(fn, "wb")
             body = cherrypy.request.body.read()
             EKOX(len(body));
             c = json.loads(body)
@@ -209,13 +171,18 @@ class App:
             EKOX(len(e))
             self.out.write(e)
             EKOT("written")
+            EKOT("predicting")
+            label, _, prob = self.vegetable.predict(self.model, Image.open(fn))
+            EKOX(self.vegetable.idx_to_class[label])
+            ans =  json.dumps({"status" : "ok",
+                               "probability" : float(prob.cpu().numpy()),
+                               "label" :  int(label), "name" : self.vegetable.idx_to_class[label]})
+            EKO()
         except Exception as e :
             EKOX(e)
-        ans =  json.dumps({"a" : 1})
+            ans =  json.dumps({"status" : e})
         EKOX(ans)
         return ans
-
-
     
     @cherrypy.expose
     def exit(self):
