@@ -129,7 +129,7 @@ class App:
         EKOT("app init")
         self.no_image = 0
         self.gd = gd
-        v = self.vegetable = train.Vegetable(gd, gpu=True)
+        v = self.vegetable = train.Vegetable(gd, use_gpu=True)
         self.model = model = v.test(measure=False, disp=False)
         model.eval()
         v.predict(model, Image.open('brocoli.jpg'))
@@ -144,6 +144,15 @@ class App:
             EKOT("main")
             data = file.read()
             data = data.replace("INFO", self.info())
+            return data
+
+    @cherrypy.expose
+    def get_model(self, number=40):
+        EKOT("REQ model")
+        fn = os.path.join(self.gd, "vegetables_%03d.onnx" % number)
+        EKOX(fn)
+        with open(fn, 'rb') as file:
+            data = file.read()
             return data
 
     @cherrypy.expose

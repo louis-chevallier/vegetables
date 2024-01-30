@@ -1,11 +1,15 @@
 
+train :
+	python -c 'import train; train.train("/mnt/hd1/data")'
+
 start :
-#	python -c 'import train; train.train("/mnt/hd1/data")'
-#	python -c 'import train; train.test("/mnt/hd1/data")'
-#	python -c 'import train; train.predict("/mnt/hd1/data")'
-	python -c 'import server; server.go("/mnt/hd1/data")'
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.train("/mnt/hd1/data")'
+#	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/hd1/data")'
+#	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.predict("/mnt/hd1/data")'
+#	CUDA_AVAILABLE_DEVICES=0 python -c 'import server; server.go("/mnt/hd1/data")'
 
-
+server :
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import server; server.go("/mnt/hd1/data")'
 
 commit_push :
 	git config --global user.email 'louis.chevallier@gmail.com'

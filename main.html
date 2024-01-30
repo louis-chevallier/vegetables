@@ -46,8 +46,8 @@ button {
 
 #dataurl {
     display: block;
-    height: 50px;
-    width: 320px;
+    height: 150px;
+    width: 520px;
     margin: 10px auto;
     resize: none;
     outline: none;
@@ -63,14 +63,20 @@ button {
 <body>
   <script src="lclog.js" charset="utf-8"></script>    
   <script type="module" src='./contenu.js'>    </script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxjs/dist/onnx.min.js"></script>
+  <script src="common/ndarray-browser-min.js"></script>
+  <script src="common/image-loader.js"></script>
   
   <button id="start-camera">Start Camera</button>
   <video id="video" width="224" height="224" autoplay></video>
   <button id="click-photo">Identify</button>
+  <button id="load-model">load model</button>
+  <button id="local_predict">local predict</button>
+  <button id="remote_predict">remote predict</button>
   <textarea id="dataurl" readonly></textarea>
 
   <div id="dataurl-container">
-    <canvas hidden="hidden"  id="canvas" width="320" height="240"></canvas>
+    <canvas hidden="hidden"  id="canvas" width="224" height="224"></canvas>
     <div id="dataurl-header">Image Data URL</div>
   </div>
 

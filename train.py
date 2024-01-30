@@ -26,20 +26,25 @@ EKOX(torch.__version__)
 BATCH_SIZE=32
 EKO()
 
+SIZE = (224, 224)
+
 class Vegetable :
-  def __init__(self, gd = "/content/gdrive/MyDrive/data", gpu=True) :
+  def __init__(self, gd = "/content/gdrive/MyDrive/data", use_gpu=True) :
     self.gd = gd
-    self.gpu = gpu
+    self.use_gpu = use_gpu
     pass
 
   def load(self, disp=False) :
     gd = self.gd
     root = os.path.join(gd, "Vegetable Images")
-    self.device = device = 'cpu' if not self.gpu else torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    EKOX(torch.cuda.is_available())
+    EKOX(self.use_gpu)
+    self.device = device = 'cpu' if not self.use_gpu else torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     EKOX(device)
     train_transform = transforms.Compose([
-      transforms.Resize((224, 224)),
+      transforms.Resize(SIZE),
+      transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),
       transforms.RandomHorizontalFlip(p=0.5),
       transforms.RandomVerticalFlip(p=0.5),
       transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
@@ -50,9 +55,18 @@ class Vegetable :
           std=[0.5, 0.5, 0.5]
       )
     ])
-    # the validation transforms
     valid_transform = self.valid_transform = transforms.Compose([
-      transforms.Resize((224, 224)),
+      transforms.Resize(SIZE),
+      transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
+      transforms.ToTensor(),
+      transforms.Normalize(
+          mean=[0.5, 0.5, 0.5],
+          std=[0.5, 0.5, 0.5]
+      )
+    ])
+
+    inference_transform = self.valid_transform = transforms.Compose([
+      transforms.Resize(SIZE),
       transforms.ToTensor(),
       transforms.Normalize(
           mean=[0.5, 0.5, 0.5],
@@ -166,7 +180,7 @@ class Vegetable :
     _, predicted = torch.max(outputs.data, 1)
     #EKOX(outputs.shape)
     EKOX(outputs)
-    EKOX(torch.log(outputs))
+
     EKOX(torch.nn.functional.softmax(outputs, dim=1))
     
     #EKOX(predicted)
@@ -234,7 +248,7 @@ def train(gd = "/content/gdrive/MyDrive/data") :
   v.train()
 
 def test(gd = "/content/gdrive/MyDrive/data") :
-  v = Vegetable(gd, gpu=False)
+  v = Vegetable(gd, use_gpu=False)
   v.test(46)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
@@ -245,7 +259,7 @@ def predict(gd = "/content/gdrive/MyDrive/data") :
   v.predict(model, Image.open('concombre.jpg'))
 
   for ii in range(7) :
-    f = "/mnt/NUC/data/test/test_%04d.jpg" % ii
+    f = "/mnt/NUC/data/test/carrotes/test_%04d.jpg" % ii
     v.predict(model, Image.open(f))
 
 
