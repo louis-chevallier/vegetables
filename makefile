@@ -10,6 +10,8 @@ start :
 
 server :
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import server; server.go("/mnt/hd1/data")'
+server_nuc :
+	python -c 'import server; server.go("/media/usb-seagate2/data/vegetables")'
 
 commit_push :
 	git config --global user.email 'louis.chevallier@gmail.com'

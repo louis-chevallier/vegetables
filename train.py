@@ -125,7 +125,7 @@ class Vegetable :
   def read(self, epoch, model) :
     path_to_read = os.path.join(self.gd, "vegetables_%03d.cpt" % epoch)
     EKOT(path_to_read)
-    state = torch.load(path_to_read)
+    state = torch.load(path_to_read, map_location=self.device)
     model.load_state_dict(state)
     #EKOX(model)
 
