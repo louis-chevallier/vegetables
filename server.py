@@ -125,11 +125,11 @@ class App:
     """
     the Webserver
     """
-    def __init__(self, gd) :
+    def __init__(self, gd, train_dir=None) :
         EKOT("app init")
         self.no_image = 0
         self.gd = gd
-        v = self.vegetable = train.Vegetable(gd, use_gpu=True)
+        v = self.vegetable = train.Vegetable(gd, use_gpu=True, model_name="resnet50", train_dir=train_dir)
         self.model = model = v.test(measure=False, disp=False)
         model.eval()
         v.predict(model, Image.open('brocoli.jpg'))
@@ -147,9 +147,9 @@ class App:
             return data
 
     @cherrypy.expose
-    def get_model(self, number=40):
+    def get_model(self, number=60):
         EKOT("REQ model")
-        fn = os.path.join(self.gd, "vegetables_%03d.onnx" % number)
+        fn = os.path.join(self.gd, "models", "vegetables_mobilenet_v2_%03d.onnx" % number)
         EKOX(fn)
         with open(fn, 'rb') as file:
             data = file.read()
@@ -207,8 +207,8 @@ config2 = {
     "gitinfo" : "info"
 }
 
-def go(gd = "/content/gdrive/MyDrive/data") :
-    app = App(gd)
+def go(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
+    app = App(gd, train_dir)
     cherrypy.log.error_log.propagate = False
     cherrypy.log.access_log.propagate = False
     EKO()

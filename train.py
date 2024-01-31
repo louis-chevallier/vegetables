@@ -13,7 +13,7 @@ import torch.onnx
 import torch.nn as nn
 import torch.optim as optim
 from torchvision.models import resnet50, ResNet50_Weights
-from torchvision.models import mobilenet_v2
+from torchvision.models import mobilenet_v2, resnet50
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -27,23 +27,32 @@ BATCH_SIZE=32
 EKO()
 
 SIZE = (224, 224)
+SIZE2 = (340, 340)
 
 class Vegetable :
-  def __init__(self, gd = "/content/gdrive/MyDrive/data", use_gpu=True) :
+  def __init__(self, gd = "/content/gdrive/MyDrive/data", use_gpu=True,
+               model_name="mobilenet_v2",
+               train_dir = None) :
     self.gd = gd
+    self.train_dir = self.gd if train_dir is None else train_dir
     self.use_gpu = use_gpu
+    self.model_name = model_name
     pass
 
+  def get_model(self) :
+    return mobilenet_v2 if self.model_name == "mobilenet_v2" else resnet50
+  
   def load(self, disp=False) :
     gd = self.gd
-    root = os.path.join(gd, "Vegetable Images")
+    root = os.path.join(self.train_dir, "Vegetable Images")
     EKOX(torch.cuda.is_available())
     EKOX(self.use_gpu)
     self.device = device = 'cpu' if not self.use_gpu else torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     EKOX(device)
     train_transform = transforms.Compose([
-      transforms.Resize(SIZE),
+      transforms.Resize(SIZE2),
+      transforms.RandomResizedCrop(SIZE),
       transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),
       transforms.RandomHorizontalFlip(p=0.5),
       transforms.RandomVerticalFlip(p=0.5),
@@ -56,7 +65,8 @@ class Vegetable :
       )
     ])
     valid_transform = self.valid_transform = transforms.Compose([
-      transforms.Resize(SIZE),
+      transforms.Resize(SIZE2),
+      transforms.RandomResizedCrop(SIZE),      
       transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
       transforms.ToTensor(),
       transforms.Normalize(
@@ -65,7 +75,7 @@ class Vegetable :
       )
     ])
 
-    inference_transform = self.valid_transform = transforms.Compose([
+    self.inference_transform = self.valid_transform = transforms.Compose([
       transforms.Resize(SIZE),
       transforms.ToTensor(),
       transforms.Normalize(
@@ -105,11 +115,20 @@ class Vegetable :
     EKOX(classes)
     nmb_classes = len(classes)
     self.classes = classes
-    model = mobilenet_v2(weights="DEFAULT")
-    #EKOX(model)
-    model.classifier = nn.Sequential(
-      nn.Dropout(p=0.2),
-      nn.Linear(1280, nmb_classes))
+
+    if self.model_name == "mobilenet_v2" :
+      model = mobilenet_v2(weights="DEFAULT")
+      model.classifier = nn.Sequential(
+        nn.Dropout(p=0.2),
+        nn.Linear(1280, nmb_classes))
+    else :
+      ### resnet
+      model = resnet50(weights="DEFAULT")
+      EKOX(model)
+      model.fc = nn.Sequential(
+        nn.Dropout(p=0.2),
+        nn.Linear(2048, nmb_classes))
+    
     model = model.to(device)
     # get some random training images
     dataiter = iter(train_loader)
@@ -123,14 +142,14 @@ class Vegetable :
     return model, train_loader, test_loader, valid_loadr
 
   def read(self, epoch, model) :
-    path_to_read = os.path.join(self.gd, "vegetables_%03d.cpt" % epoch)
+    path_to_read = os.path.join(self.gd, "models", "vegetables_%s_%03d.cpt" % (self.model_name, epoch))
     EKOT(path_to_read)
     state = torch.load(path_to_read, map_location=self.device)
     model.load_state_dict(state)
     #EKOX(model)
 
   
-  def test(self, epoch=33, measure=True, disp=False) :
+  def test(self, epoch=53, measure=True, disp=False) :
     """
     measure : faire le calcul de l'accuracy
     """
@@ -167,10 +186,12 @@ class Vegetable :
           
         
     EKOX(table)
-    EKOT(f'Accuracy of the network  test images: {100 * correct // total} %')
-
+    accuracy = 100 * correct // total
+    EKOX(accuracy)
+    return accuracy
+    
   def predict(self, model, image) :
-    i = self.valid_transform(image)[None, ...]
+    i = self.inference_transform(image)[None, ...]
     #EKOX(i.shape)
     images = i.to(self.device)
     #EKOX(model)
@@ -179,18 +200,17 @@ class Vegetable :
       outputs = model(images)
     _, predicted = torch.max(outputs.data, 1)
     #EKOX(outputs.shape)
-    EKOX(outputs)
-
-    EKOX(torch.nn.functional.softmax(outputs, dim=1))
+    #EKOX(outputs)
+    #EKOX(torch.nn.functional.softmax(outputs, dim=1))
     
     #EKOX(predicted)
     label = predicted.to('cpu').numpy()[0]
-    EKOX(label)
+    #EKOX(label)
     prob = torch.nn.functional.softmax(outputs, dim=1)[0, label]
     #EKOX(outputs.data.shape)
     #EKOX(outputs.data[0, label])
     #EKOX(label)
-    EKOX(self.idx_to_class[label])
+    #EKOX(self.idx_to_class[label])
     return label, outputs.data.cpu().numpy(), prob
     
   def train(self) :
@@ -199,8 +219,12 @@ class Vegetable :
     device = self.device
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
-    EKOX(len(train_loader))  
-    for epoch in range(50):  # loop over the dataset multiple times
+    EKOX(len(train_loader))
+    accs = []
+    with open("accuracies.txt", "w") as fd :
+      fd.write("\n".join(map(str, accs)))
+    
+    for epoch in range(70):  # loop over the dataset multiple times
       EKOX(epoch)
       running_loss = 0.0
       model.train()
@@ -224,27 +248,31 @@ class Vegetable :
               EKOT(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 200:.3f}')
               running_loss = 0.0
 
-      self.measure(test_loader, model)
+      accs.append(self.measure(test_loader, model))
 
-      torch.save(model.state_dict(), os.path.join(gd, "vegetables_%03d.cpt" % epoch))
+      os.makedirs( os.path.join(gd, "models"), exist_ok=True)
+      torch.save(model.state_dict(), os.path.join(gd, "models", "vegetables_%s_%03d.cpt" % (self.model_name, epoch)))
       model = model.to('cpu')
       model.eval()
       x = torch.randn(BATCH_SIZE, 3, 224, 224, requires_grad=True)
       torch_out = model(x)
       torch.onnx.export(model,
-                    x,                        
-                    os.path.join(gd, "vegetables_%03d.onnx" % epoch),
-                    export_params=True, 
-                    opset_version=10,
-                    do_constant_folding=True, 
-                    input_names = ['input'],  
-                    output_names = ['output'],
-                    dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
-                                  'output' : {0 : 'batch_size'}})
+                        x,                        
+                        os.path.join(gd, "models", "vegetables_%s_%03d.onnx" % (self.model_name, epoch)),
+                        export_params=True, 
+                        opset_version=10,
+                        do_constant_folding=True, 
+                        input_names = ['input'],  
+                        output_names = ['output'],
+                        dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
+                                      'output' : {0 : 'batch_size'}})
+    with open("accuracies_%s.txt" % self.model_name, "w") as fd :
+      fd.write("\n".join(map(str, accs)))
 
-
-def train(gd = "/content/gdrive/MyDrive/data") :
-  v = Vegetable(gd)
+def train(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
+  v = Vegetable(gd, model_name="resnet50")
+  v.train()
+  v = Vegetable(gd, model_name="mobilenet_v2", train_dir=train_dir)
   v.train()
 
 def test(gd = "/content/gdrive/MyDrive/data") :
@@ -252,18 +280,13 @@ def test(gd = "/content/gdrive/MyDrive/data") :
   v.test(46)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
-  v = Vegetable(gd, gpu=True)
+  v = Vegetable(gd, use_gpu=True)
   model = v.test(measure=True, disp=False)
   model.eval()
   v.predict(model, Image.open('brocoli.jpg'))
   v.predict(model, Image.open('concombre.jpg'))
 
   for ii in range(7) :
-    f = "/mnt/NUC/data/test/carrotes/test_%04d.jpg" % ii
-    v.predict(model, Image.open(f))
-
-
-
-  
-
-
+    f = "/mnt/NUC/data/test/carrots/test_%04d.jpg" % ii
+    label, _, _ = v.predict(model, Image.open(f))
+    EKOX(f, v.idx_to_class[label], prob)
