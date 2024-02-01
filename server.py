@@ -135,10 +135,10 @@ class App:
         v.predict(model, Image.open('brocoli.jpg'))
         
     def info(self) :
-        gi = "GITINFO"
-        i = os.environ[gi] if gi in os.environ else ""
-        EKOX(i)
-        return i
+        def read(gi) :
+            i = os.environ[gi] if gi in os.environ else ""
+            return gi + "=" + i
+        return read('GITINFO') + ", " + read("HOST") + ", " + read("DATE")
             
     @cherrypy.expose
     def index(self):

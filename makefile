@@ -1,5 +1,5 @@
 export DATE:=$(shell date +%Y-%m-%d_%Hh%Mm%Ss)
-HOST=$(shell hostname)
+export HOST=$(shell hostname)
 SHELL=bash
 export GITINFO=$(shell git log --pretty=format:"%h - %an, %ar : %s" -1)
 
