@@ -60,9 +60,8 @@ class Vegetable :
       transforms.RandomRotation(degrees=(30, 70)),
       transforms.ToTensor(),
       transforms.Normalize(
-          mean=[0.5, 0.5, 0.5],
-          std=[0.5, 0.5, 0.5]
-      )
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225])
     ])
     valid_transform = self.valid_transform = transforms.Compose([
       transforms.Resize(SIZE2),
@@ -70,18 +69,16 @@ class Vegetable :
       transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
       transforms.ToTensor(),
       transforms.Normalize(
-          mean=[0.5, 0.5, 0.5],
-          std=[0.5, 0.5, 0.5]
-      )
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225])
     ])
 
     self.inference_transform = self.valid_transform = transforms.Compose([
       transforms.Resize(SIZE),
       transforms.ToTensor(),
       transforms.Normalize(
-          mean=[0.5, 0.5, 0.5],
-          std=[0.5, 0.5, 0.5]
-      )
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225])
     ])
 
     ds_train = ImageFolder(os.path.join(root, 'train'),
@@ -270,23 +267,28 @@ class Vegetable :
       fd.write("\n".join(map(str, accs)))
 
 def train(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
-  v = Vegetable(gd, model_name="resnet50")
+  v = Vegetable(gd, model_name="resnet50", train_dir=train_dir)
   v.train()
   v = Vegetable(gd, model_name="mobilenet_v2", train_dir=train_dir)
   v.train()
 
-def test(gd = "/content/gdrive/MyDrive/data") :
-  v = Vegetable(gd, use_gpu=False)
+def test(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
+  v = Vegetable(gd, use_gpu=True, train_dir=train_dir)
+  v.test(46)
+  v = Vegetable(gd, model_name="resnet50", train_dir=train_dir)
   v.test(46)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
   v = Vegetable(gd, use_gpu=True)
-  model = v.test(measure=True, disp=False)
+  model = v.test(measure=False, disp=False)
   model.eval()
   v.predict(model, Image.open('brocoli.jpg'))
   v.predict(model, Image.open('concombre.jpg'))
 
-  for ii in range(7) :
-    f = "/mnt/NUC/data/test/carrots/test_%04d.jpg" % ii
-    label, _, _ = v.predict(model, Image.open(f))
-    EKOX(f, v.idx_to_class[label], prob)
+  l = glob.glob("tests/*.jpg")  
+  for f in l :
+    im = Image.open(f)
+    label, _, prob = v.predict(model, im)
+    EKOI(np.asarray(im))
+    EKOX(v.idx_to_class[label])
+    EKOX(prob)

@@ -3,9 +3,10 @@
 
 # https://usefulangle.com/post/352/javascript-capture-image-from-camera
 
-import os, gc, sys
+import os, gc, sys, glob
 import os, json, base64
 import shutil
+import re
 from utillc import *
 import cherrypy
 import threading
@@ -60,66 +61,6 @@ config = {
 dirphotos = "/tmp/photos_%s" % os.environ["USER"]
 tmpphotos = "/tmp/photos_tmp_%s" % os.environ["USER"]
 
-class Reconstructor(threading.Thread):
-    """
-    the thread which runs the reconstructor, 
-    comunication with the web server using 2 queues
-    """
-    def __init__(self, server, args) :
-        super().__init__()        
-        pass
-        self.queue = queue.Queue(maxsize=50)
-        self.event = threading.Event()
-        self.server = server
-        self.progress = []
-        EKO()
-        self.args = args
-        device_name = args.dev
-        dataroot = args.dataroot
-        EKO()
-        args.showloss=False
-        self.fitting = None
-        self.vegetable = train.Vegetable()
-        EKO()
-        self.total=1
-        self.running = False
-        self.computationTime = "time : nothing yet"
-        self.radic = 0
-        self.last_objpath = no_path
-        
-    def run(self) :
-        EKOT("http://localhost:%d/main.html" % config["global"]["server.socket_port"])        
-        while True :
-            EKOT("waiting for request to process")
-            try :
-                EKO();
-                go_on = self.process();
-                if not go_on :
-                    EKO()
-                    break
-            except Exception as e :
-                EKOX(e, n=WARNING)
-        EKO()
-
-        
-        
-    def process(self) -> bool :
-        self.running = False
-        EKOT("waiting for something")
-        EKOX(self.server.queue.qsize())                    
-        req = self.server.queue.get()
-        EKOX(self.server.queue.qsize())                 
-        EKOT("got something")
-        if "exit" in req :
-            EKO()
-            return False
-            
-        self.progress = []
-        d = self.vegetable.predict(req['image'])
-        EKOX(d)
-        self.queue.put(d)            
-        EKOT("mess sent")
-        return True
 
 class App:
     """
@@ -133,6 +74,9 @@ class App:
         self.model = model = v.test(measure=False, disp=False)
         model.eval()
         v.predict(model, Image.open('brocoli.jpg'))
+        EKOX(self.get_next_image_num())
+        os.makedirs( os.path.join(gd, "tests"), exist_ok=True)
+
         
     def info(self) :
         def read(gi) :
@@ -167,13 +111,21 @@ class App:
         rp = os.path.relpath(p.path, start = "/")
         print(rp)
    
-
+    def get_next_image_num(self) :
+        l = glob.glob("test/test_*.jpg")
+        EKOX(l)
+        l = sorted(l)
+        EKOX(l[-1])
+        result = re.search(r"test_([0-9]+).jpg", l[-1])
+        EKOX(result.group(1))
+        return int(result.group(1))+1
+        
     @cherrypy.expose
     def chunk(self, data=None) :
         EKOT("received chunk")
         #EKOX(data);
         try :
-            fn = "test_%04d.jpg" % self.no_image
+            fn = "tests/test_%04d.jpg" % self.get_next_image_num()
             self.no_image += 1
             self.out = open(fn, "wb")
             body = cherrypy.request.body.read()
