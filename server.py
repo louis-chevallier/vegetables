@@ -142,6 +142,8 @@ class App:
             
     @cherrypy.expose
     def index(self):
+        """ main 
+        """
         EKOT("REQ main")
         with open('./main.html', 'r') as file:
             EKOT("main")

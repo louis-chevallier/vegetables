@@ -28,7 +28,6 @@ commit_push :
 #	git remote set-url origin https://louis-chevallier:"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"@github.com/louis-chevallier/vegetables.git
 	git push --set-upstream origin main
 
-
 key :
 # https://docs.cherrypy.dev/en/latest/deploy.html
 	openssl genrsa -out privkey.pem 2048
