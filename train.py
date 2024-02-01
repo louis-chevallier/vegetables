@@ -124,7 +124,7 @@ class Vegetable :
     else :
       ### resnet
       model = resnet50(weights="DEFAULT")
-      EKOX(model)
+      #EKOX(model)
       model.fc = nn.Sequential(
         nn.Dropout(p=0.2),
         nn.Linear(2048, nmb_classes))

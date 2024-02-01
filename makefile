@@ -1,3 +1,7 @@
+export DATE:=$(shell date +%Y-%m-%d_%Hh%Mm%Ss)
+HOST=$(shell hostname)
+SHELL=bash
+export GITINFO=$(shell git log --pretty=format:"%h - %an, %ar : %s" -1)
 
 train :
 	python -c 'import train; train.train("/mnt/hd1/data")'
@@ -8,8 +12,10 @@ start :
 #	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.predict("/mnt/hd1/data")'
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import server; server.go("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")'
 
+$(warning $(GITINFO))
+
 server :
-	CUDA_AVAILABLE_DEVICES=0 python -c 'import server; server.go("/mnt/hd1/data")'
+	CUDA_AVAILABLE_DEVICES=0  python -c 'import server; server.go("/mnt/hd1/data")'
 
 server_nuc :
 	python -c 'import server; server.go("/media/usb-seagate2/data/vegetables")'

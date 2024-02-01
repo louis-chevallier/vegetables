@@ -135,8 +135,11 @@ class App:
         v.predict(model, Image.open('brocoli.jpg'))
         
     def info(self) :
-        return "xxx"
-        
+        gi = "GITINFO"
+        i = os.environ[gi] if gi in os.environ else ""
+        EKOX(i)
+        return i
+            
     @cherrypy.expose
     def index(self):
         EKOT("REQ main")
