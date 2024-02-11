@@ -72,19 +72,20 @@ class Vegetable :
 
   def vgg16_bnf(nmb_classes) :
     model = vgg16_bn(weights="DEFAULT")
-    #EKOX(model)
+    EKOX(model)
     model.classifier[6] = nn.Linear(4096, nmb_classes)
+    EKOX(model)    
     return model
 
 
   t = {
-    "vgg16_bn" : (vgg16_bnf, 32), 
+    #"vgg16_bn" : (vgg16_bnf, 32), 
     #"resnet101" : (resnet101f, 32), 
     #"maxvit" : (maxvitf, 32),
     
-    #"mobilenet_v2" : (mobilenetf, 64),
+    "mobilenet_v2" : (mobilenetf, 64),
     #"efficientnet_v2" : (efficientnetf, 32),
-    #"resnet50" : (resnetf, 64)
+    "resnet50" : (resnetf, 64)
     
   }
 
