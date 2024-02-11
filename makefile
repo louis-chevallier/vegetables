@@ -7,7 +7,8 @@ train :
 	python -c 'import train; train.train("/mnt/hd1/data")'
 
 start :
-	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.train("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")'
+	mkdir -p trcs
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.train("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")' 2>&1 | tee trcs/$(@)_$(DATE).trc
 #	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")'
 #	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.predict("/mnt/NUC/data/vegetables")'
 #	CUDA_AVAILABLE_DEVICES=0 python -c 'import server; server.go("/mnt/NUC/data/vegetables")'
