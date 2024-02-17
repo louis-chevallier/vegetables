@@ -55,9 +55,12 @@ async function local_predict() {
 async function remote_predict() {
 
     const imageSize = 224;
-    const imageLoader = new ImageLoader(imageSize, imageSize);
-    const imageData = await imageLoader.getImageData('./brocoli.jpg');
-    let image_data_url = imageLoader.canvas.toDataURL('image/jpeg');
+    //const imageLoader = new ImageLoader(imageSize, imageSize);
+    //const imageData = await imageLoader.getImageData('./brocoli.jpg');
+    //let image_data_url = imageLoader.canvas.toDataURL('image/jpeg');
+
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    let image_data_url = canvas.toDataURL('image/jpeg');
     
     let data = JSON.stringify({image: image_data_url});
     const chunk = data.split(',').pop()
@@ -80,7 +83,7 @@ async function remote_predict() {
     EKOX("sent");
     */
     if (json.status == "ok")  {
-        dataurl.value = json.name + " p=" + json.probability;
+        dataurl.value = json.name + " p=" + json.probability + ", request number=" + json.requests;
     }
     //dataurl.value = image_data_url;
     dataurl_container.style.display = 'block';

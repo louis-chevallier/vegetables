@@ -30,6 +30,7 @@ EKOX(rootDir)
 port = 8080
 if "PORT" in os.environ :
     port = int(os.environ["PORT"])
+EKOX(port)
 
 OK="OK"
 FAILED="FAILED"
@@ -51,7 +52,7 @@ config = {
       
       'server.socket_host' : '0.0.0.0', #192.168.1.5', #'127.0.0.1',
       'server.socket_port' : port,
-      'server.thread_pool' : 8,
+      'server.thread_pool' : 1,
       'log.screen': False,
       'log.error_file': './error.log',
       'log.access_file': './access.log'
@@ -75,8 +76,8 @@ class App:
         model.eval()
         v.predict(model, Image.open('brocoli.jpg'))
         EKOX(self.get_next_image_num())
-        os.makedirs( os.path.join(gd, "tests"), exist_ok=True)
-
+        os.makedirs( os.path.join(".", "tests"), exist_ok=True)
+        self.requests = 0
         
     def info(self) :
         def read(gi) :
@@ -112,18 +113,27 @@ class App:
         print(rp)
    
     def get_next_image_num(self) :
-        l = glob.glob("test/test_*.jpg")
-        EKOX(l)
-        l = sorted(l)
-        EKOX(l[-1])
-        result = re.search(r"test_([0-9]+).jpg", l[-1])
-        EKOX(result.group(1))
-        return int(result.group(1))+1
+        l = glob.glob("tests/test_*.jpg")
+        if len(l) > 0 :
+            EKOX(l)
+            l = sorted(l)
+            EKOX(l[-1])
+            result = re.search(r"test_([0-9]+).jpg", l[-1])
+            EKOX(result.group(1))
+            return int(result.group(1))+1
+        else :
+            return 0
+
+    @cherrypy.expose
+    def get_requests(self) :
+        ans =  json.dumps({"requests" : self.requests })
+        return ans
+        
         
     @cherrypy.expose
     def chunk(self, data=None) :
         EKOT("received chunk")
-        #EKOX(data);
+        EKOX(data);
         try :
             fn = "tests/test_%04d.jpg" % self.get_next_image_num()
             self.no_image += 1
@@ -141,12 +151,15 @@ class App:
             label, _, prob = self.vegetable.predict(self.model, Image.open(fn))
             EKOX(self.vegetable.idx_to_class[label])
             ans =  json.dumps({"status" : "ok",
+                               "requests" : int(self.requests),
                                "probability" : float(prob.cpu().numpy()),
-                               "label" :  int(label), "name" : self.vegetable.idx_to_class[label]})
+                               "label" :  int(label),
+                               "name" : self.vegetable.idx_to_class[label]})
             EKO()
+            self.requests += 1
         except Exception as e :
             EKOX(e)
-            ans =  json.dumps({"status" : e})
+            ans =  json.dumps({"status" : str(e) })
         EKOX(ans)
         return ans
     
@@ -168,6 +181,6 @@ def go(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
     app = App(gd, train_dir)
     cherrypy.log.error_log.propagate = False
     cherrypy.log.access_log.propagate = False
-    EKO()
+    EKOT("server running")
     cherrypy.quickstart(app, '/', config)
     EKOT("end server", n=LOG)

@@ -18,6 +18,14 @@ $(warning $(GITINFO))
 server :
 	CUDA_AVAILABLE_DEVICES=0  python -c 'import server; server.go("/mnt/hd1/data")'
 
+test :
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")'
+
+
+run :
+	date
+	source ${HOME}/scripts/.bashrc; spy; pyenv; make server_nuc
+
 server_nuc :
 	python -c 'import server; server.go("/media/usb-seagate2/data/vegetables")'
 

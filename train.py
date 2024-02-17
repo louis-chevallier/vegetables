@@ -51,7 +51,7 @@ class Vegetable :
   def resnetf(nmb_classes) :
     ### resnet
     model = resnet50(weights="DEFAULT")
-    EKOX(model)
+    #EKOX(model)
     model.fc = nn.Sequential(
       #nn.Dropout(p=0.2),
     nn.Linear(2048, nmb_classes))
@@ -158,6 +158,8 @@ class Vegetable :
                   transform=valid_transform)
     ds_valid = ImageFolder(os.path.join(root, 'validation'),
                   transform=valid_transform)
+    ds_valid2 = ImageFolder(os.path.join(root, 'validation2'),
+                  transform=valid_transform)
     self.class_to_idx = ds_train.class_to_idx
     self.idx_to_class = dict([ (v,k) for k,v in self.class_to_idx.items()])
     
@@ -191,6 +193,9 @@ class Vegetable :
     valid_loadr = torch.utils.data.DataLoader(ds_valid, 
             batch_size=batch_size, shuffle=True,
             num_workers=4, pin_memory=True)
+    valid_loadr2 = torch.utils.data.DataLoader(ds_valid2, 
+            batch_size=batch_size, shuffle=True,
+            num_workers=4, pin_memory=True)
     
     
     model = model.to(device)
@@ -200,7 +205,7 @@ class Vegetable :
     # get some random training images
     dataiter = iter(train_loader_visu)
     images, labels = next(dataiter)
-    EKOX(str(labels))
+    #EKOX(str(labels))
     if disp :
       # show images
       imshow(torchvision.utils.make_grid(images))
@@ -209,26 +214,27 @@ class Vegetable :
     #EKOX(torchscan.summary(model), (3, SIZE, SIZE))
     
     print(' '.join(f'{self.idx_to_class[int(labels[j])]:5s}' for j in range(BATCH_SIZE)))
-    return model, train_loader, test_loader, valid_loadr, batch_size
+    return model, train_loader, test_loader, valid_loadr, valid_loadr2, batch_size
 
   def read(self, epoch, model) :
     path_to_read = os.path.join(self.gd, "models", "vegetables_%s_%03d.cpt" % (self.model_name, epoch))
-    EKOT(path_to_read)
+    EKOT("using ", path_to_read)
     state = torch.load(path_to_read, map_location=self.device)
     model.load_state_dict(state)
     #EKOX(model)
 
   
-  def test(self, epoch=53, measure=True, disp=False) :
+  def test(self, epoch=193, measure=True, disp=False) :
     """
     measure : faire le calcul de l'accuracy
     """
-    model, train_loader, test_loader, valid_loader, _ = self.load(disp=disp)
+    model, train_loader, test_loader, valid_loader, valid_loader2, _ = self.load(disp=disp)
     self.read(epoch, model)
     if measure :
       self.measure(train_loader, model)
       self.measure(test_loader, model)
       self.measure(valid_loader, model)
+      self.measure(valid_loader2, model)      
     return model
   
   def measure(self, loader, model) :
@@ -286,7 +292,7 @@ class Vegetable :
     
   def train(self) :
     gd = self.gd
-    model, train_loader, test_loader, _, batch_size = self.load(model_name=self.model_name, disp=False)
+    model, train_loader, test_loader, _, _, batch_size = self.load(model_name=self.model_name, disp=False)
     device = self.device
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
@@ -355,10 +361,10 @@ def train(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
 
 
 def test(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
-  v = Vegetable(gd, use_gpu=True, train_dir=train_dir)
-  v.test(46)
-  v = Vegetable(gd, model_name="resnet50", train_dir=train_dir)
-  v.test(46)
+  #v = Vegetable(gd, use_gpu=True, train_dir=train_dir)
+  #v.test(46)
+  v = Vegetable(gd, model_name="resnet50", train_dir=train_dir, use_gpu=True)
+  v.test(mesure=True)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
   v = Vegetable(gd, use_gpu=True)
