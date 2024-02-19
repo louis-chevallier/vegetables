@@ -34,19 +34,33 @@ SIZE2 = (340, 340)
 #SIZE = (340, 340)
 #SIZE2 = (448, 448)
 
+dataset = "Vegetable Images"
+dataset = "FruitsVegetables"
+
 class Vegetable :
   def mobilenetf(nmb_classes) : 
     model = mobilenet_v2(weights="DEFAULT")
-    model.classifier[1] = nn.Linear(1280, nmb_classes)
-    return model
+
+    model.classifier = nn.Sequential(
+      #nn.Dropout(p=0.2),
+      nn.Linear(1280, 512),
+      nn.ReLU(), 
+      nn.Linear(512, nmb_classes))
+    
+    #model.classifier[1] = nn.Linear(1280, nmb_classes)
+    EKOX(model)
+    return model, model.classifier
 
   def resnet101f(nmb_classes) :
     ### resnet
     model = resnet101(weights="DEFAULT")
     model.fc = nn.Sequential(
       #nn.Dropout(p=0.2),
-    nn.Linear(2048, nmb_classes))
-    return model
+      nn.Linear(2048, 512),
+      nn.ReLU(), 
+      nn.Linear(512, nmb_classes))
+    
+    return model, model.fc
 
   def resnetf(nmb_classes) :
     ### resnet
@@ -54,28 +68,30 @@ class Vegetable :
     #EKOX(model)
     model.fc = nn.Sequential(
       #nn.Dropout(p=0.2),
-    nn.Linear(2048, nmb_classes))
-    return model
+      nn.Linear(2048, 512),
+      nn.ReLU(), 
+      nn.Linear(512, nmb_classes))
+    return model, model
 
   def efficientnetf(nmb_classes) :
     model = efficientnet_v2_m(weights="DEFAULT")
     EKOX(model)
     model.classifier[1] = nn.Linear(1280, nmb_classes)
     
-    return model
+    return model, model.classifier
 
   def maxvitf(nmb_classes) :
     model = maxvit_t(weights="DEFAULT")
     #EKOX(model)
     model.classifier[5] = nn.Linear(512, nmb_classes)
-    return model
+    return model, model.classifier
 
   def vgg16_bnf(nmb_classes) :
     model = vgg16_bn(weights="DEFAULT")
     EKOX(model)
     model.classifier[6] = nn.Linear(4096, nmb_classes)
     EKOX(model)    
-    return model
+    return model, model.classifier
 
 
   t = {
@@ -83,10 +99,9 @@ class Vegetable :
     #"resnet101" : (resnet101f, 32), 
     #"maxvit" : (maxvitf, 32),
     
-    "mobilenet_v2" : (mobilenetf, 64),
+    #"mobilenet_v2" : (mobilenetf, 64),
     #"efficientnet_v2" : (efficientnetf, 32),
     "resnet50" : (resnetf, 64)
-    
   }
 
 
@@ -97,6 +112,7 @@ class Vegetable :
     self.train_dir = self.gd if train_dir is None else train_dir
     self.use_gpu = use_gpu
     self.model_name = model_name
+    EKO()
     self.load(model_name, disp=False)
     pass
 
@@ -105,7 +121,7 @@ class Vegetable :
   
   def load(self, model_name=None, disp=False) :
     gd = self.gd
-    root = os.path.join(self.train_dir, "Vegetable Images")
+    root = os.path.join(self.train_dir, dataset)
     EKOX(torch.cuda.is_available())
     EKOX(self.use_gpu)
     self.device = device = 'cpu' if not self.use_gpu else torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -113,7 +129,7 @@ class Vegetable :
     EKOX(device)
     train_transform = transforms.Compose([
       transforms.Resize(SIZE2),
-      transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),
+      #transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),
       transforms.RandomHorizontalFlip(p=0.5),
       transforms.RandomVerticalFlip(p=0.5),
       transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
@@ -128,7 +144,7 @@ class Vegetable :
     
     valid_transform = self.valid_transform = transforms.Compose([
       transforms.Resize(SIZE2),
-      transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
+      #transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
       transforms.RandomResizedCrop(SIZE),      
       transforms.ToTensor(),
       transforms.Normalize(
@@ -175,11 +191,12 @@ class Vegetable :
     classes = list(self.class_to_idx.keys())
     EKOX(classes)
     nmb_classes = len(classes)
+    EKOX(nmb_classes)
     self.classes = classes
     
     t = self.t
     _, batch_size = t[self.model_name]
-    model = t[self.model_name][0](nmb_classes)
+    model, classifier = t[self.model_name][0](nmb_classes)
 
     train_loader_visu = torch.utils.data.DataLoader(ds_train, 
             batch_size=batch_size*4, shuffle=True,
@@ -202,19 +219,25 @@ class Vegetable :
     EKOX(self.model_name)
     total_params = sum(param.numel() for param in model.parameters())
     EKOX(total_params)    
+    total_params_train = sum(param.numel() for param in classifier.parameters())
+    EKOX(total_params_train)    
     # get some random training images
     dataiter = iter(train_loader_visu)
     images, labels = next(dataiter)
+    EKO()
     #EKOX(str(labels))
     if disp :
       # show images
+      EKO()
+      print(' '.join(f'{self.idx_to_class[int(labels[j])]:5s}' for j in range(BATCH_SIZE)))      
       imshow(torchvision.utils.make_grid(images))
+      
     # print labels
 
     #EKOX(torchscan.summary(model), (3, SIZE, SIZE))
     
-    print(' '.join(f'{self.idx_to_class[int(labels[j])]:5s}' for j in range(BATCH_SIZE)))
-    return model, train_loader, test_loader, valid_loadr, valid_loadr2, batch_size
+    
+    return model, train_loader, test_loader, valid_loadr, valid_loadr2, batch_size, classifier
 
   def read(self, epoch, model) :
     path_to_read = os.path.join(self.gd, "models", "vegetables_%s_%03d.cpt" % (self.model_name, epoch))
@@ -228,22 +251,25 @@ class Vegetable :
     """
     measure : faire le calcul de l'accuracy
     """
-    model, train_loader, test_loader, valid_loader, valid_loader2, _ = self.load(disp=disp)
+    EKO()
+    model, train_loader, test_loader, valid_loader, valid_loader2, _, classifier = self.load(disp=disp)
+    EKO()
     self.read(epoch, model)
+    EKO()
     if measure :
-      self.measure(train_loader, model)
-      self.measure(test_loader, model)
-      self.measure(valid_loader, model)
-      self.measure(valid_loader2, model)      
+      #EKO(); self.measure(train_loader, model)
+      EKO(); self.measure(test_loader, model)
+      EKO(); self.measure(valid_loader, model)
+      EKO(); self.measure(valid_loader2, model)      
     return model
   
   def measure(self, loader, model) :
     n = len(self.classes)
-    table = np.zeros((n, n))
+    confusion_table = np.zeros((n, n)).astype(int)
     device = self.device
     correct = 0
     total = 0
-    EKOT(len(loader))
+    #EKOT(len(loader))
     with torch.no_grad():
       for data in loader:
         images, labels = data
@@ -259,10 +285,14 @@ class Vegetable :
           #EKOX(true_label)
           #EKOX(pred)
           #EKOX(int(torch.max(pred, 0).indices))
-          table[true_label, int(torch.max(pred, 0).indices)] += 1
+          confusion_table[true_label, int(torch.max(pred, 0).indices)] += 1
           
-        
-    EKOX(table)
+    classes = list(self.class_to_idx.keys())
+    classesn = list(map(str, range(len(classes))))
+    #EKOX(list(zip(classesn, classes)))
+    #EKOX(classesn)
+    fs = lambda x : "%3s" % x
+    #EKOX("\n   " + '\t'.join(map(fs, classesn)) + '\n' + '\n'.join([ fs(classesn[i]) + "" + "\t".join(map(fs, e)) for i, e in enumerate(confusion_table)]))
     accuracy = 100 * correct // total
     EKOX(accuracy)
     return accuracy
@@ -292,11 +322,11 @@ class Vegetable :
     
   def train(self) :
     gd = self.gd
-    model, train_loader, test_loader, _, _, batch_size = self.load(model_name=self.model_name, disp=False)
+    model, train_loader, test_loader, valid_loader, valid_loader2, batch_size, classifier = self.load(model_name=self.model_name, disp=False)
     device = self.device
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=0.01)
-    optimizer = optim.NAdam(model.parameters(), lr=0.02)
+    optimizer = optim.Adam(classifier.parameters(), lr=0.0001)
+    #optimizer = optim.NAdam(model.parameters(), lr=0.02)
     EKOX(len(train_loader))
     accs, accs_train = [], []
     with open("accuracies.txt", "w") as fd :
@@ -328,16 +358,19 @@ class Vegetable :
 
       accs_train.append(self.measure(train_loader, model))
       accs.append(self.measure(test_loader, model))
+      self.measure(valid_loader2, model)
+      self.measure(valid_loader, model)
 
+      
       os.makedirs( os.path.join(gd, "models"), exist_ok=True)
-      torch.save(model.state_dict(), os.path.join(gd, "models", "vegetables_%s_%03d.cpt" % (self.model_name, epoch)))
+      torch.save(model.state_dict(), os.path.join(gd, "models", "vegetables_%s_%s_%03d.cpt" % (dataset, self.model_name, epoch)))
       model = model.to('cpu')
       model.eval()
       x = torch.randn(BATCH_SIZE, 3, 224, 224, requires_grad=True)
       torch_out = model(x)
       torch.onnx.export(model,
                         x,                        
-                        os.path.join(gd, "models", "vegetables_%s_%03d.onnx" % (self.model_name, epoch)),
+                        os.path.join(gd, "models", "vegetables_%s_%s_%03d.onnx" % (dataset, self.model_name, epoch)),
                         export_params=True, 
                         opset_version=10,
                         do_constant_folding=True, 
@@ -364,7 +397,7 @@ def test(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
   #v = Vegetable(gd, use_gpu=True, train_dir=train_dir)
   #v.test(46)
   v = Vegetable(gd, model_name="resnet50", train_dir=train_dir, use_gpu=True)
-  v.test(mesure=True)
+  v.test(measure=True)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
   v = Vegetable(gd, use_gpu=True)
