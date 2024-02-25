@@ -97,13 +97,17 @@ class App:
             return data
 
     @cherrypy.expose
-    def get_model(self, number=60):
+    def get_model(self, number=190):
         EKOT("REQ model")
-        fn = os.path.join(self.gd, "models", "vegetables_mobilenet_v2_%03d.onnx" % number)
+        fn = os.path.join(self.gd, "models", "vegetables_FruitsVegetables_mobilenet_v2_%03d.onnx" % number)
         EKOX(fn)
         with open(fn, 'rb') as file:
             data = file.read()
             return data
+
+    @cherrypy.expose
+    def get_classes(self) :
+        return ' '.join(map(str, self.vegetable.get_classes()))
 
     @cherrypy.expose
     def log(self, data=None) :

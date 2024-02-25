@@ -9,19 +9,47 @@ const session = new onnx.InferenceSession()
 //const session = new onnx.InferenceSession({ backendHint: 'webgl' });
 
 function preprocess(data, width, height) {
-  const dataFromImage = ndarray(new Float32Array(data), [width, height, 4]);
-  const dataProcessed = ndarray(new Float32Array(width * height * 3), [1, 3, height, width]);
+    const dataFromImage = ndarray(new Float32Array(data), [width, height, 4]);
+    const dataProcessed = ndarray(new Float32Array(width * height * 3), [1, 3, height, width]);
+    
+    EKOX(dataFromImage.get(1,1,0))
+    EKOX(dataFromImage.get(1,1,1))
+    EKOX(dataFromImage.get(1,1,2))    
+    EKOX(dataFromImage.get(1,1,3))    
+    
+    
+    // Normalize 0-255 to (-1)-1
+    ndarray.ops.divseq(dataFromImage.pick(2, null, null), 255);
+    ndarray.ops.divseq(dataFromImage.pick(1, null, null), 255);
+    ndarray.ops.divseq(dataFromImage.pick(0, null, null), 255);
 
-  // Normalize 0-255 to (-1)-1
-  ndarray.ops.subseq(dataFromImage.pick(2, null, null), 103.939);
-  ndarray.ops.subseq(dataFromImage.pick(1, null, null), 116.779);
-  ndarray.ops.subseq(dataFromImage.pick(0, null, null), 123.68);
+    EKOX(dataFromImage.get(1,1,0))
+    EKOX(dataFromImage.get(1,1,1))
+    EKOX(dataFromImage.get(1,1,2))    
+    EKOX(dataFromImage.get(1,1,3))    
+    
+    ndarray.ops.subseq(dataFromImage.pick(2, null, null), 0.485);
+    ndarray.ops.subseq(dataFromImage.pick(1, null, null), 0.456);
+    ndarray.ops.subseq(dataFromImage.pick(0, null, null), 0.406);
 
-  // Realign imageData from [224*224*4] to the correct dimension [1*3*224*224].
-  ndarray.ops.assign(dataProcessed.pick(0, 0, null, null), dataFromImage.pick(null, null, 2));
-  ndarray.ops.assign(dataProcessed.pick(0, 1, null, null), dataFromImage.pick(null, null, 1));
-  ndarray.ops.assign(dataProcessed.pick(0, 2, null, null), dataFromImage.pick(null, null, 0));
-
+    EKOX(dataFromImage.get(1,1,0))
+    EKOX(dataFromImage.get(1,1,1))
+    EKOX(dataFromImage.get(1,1,2))    
+    EKOX(dataFromImage.get(1,1,3))    
+    
+    ndarray.ops.divseq(dataFromImage.pick(2, null, null), 0.229);
+    ndarray.ops.divseq(dataFromImage.pick(1, null, null), 0.224);
+    ndarray.ops.divseq(dataFromImage.pick(0, null, null), 0.225);
+    EKOX(dataFromImage.get(1,1,0))
+    EKOX(dataFromImage.get(1,1,1))
+    EKOX(dataFromImage.get(1,1,2))    
+    EKOX(dataFromImage.get(1,1,3))    
+    
+    // Realign imageData from [224*224*4] to the correct dimension [1*3*224*224].
+    ndarray.ops.assign(dataProcessed.pick(0, 0, null, null), dataFromImage.pick(null, null, 2));
+    ndarray.ops.assign(dataProcessed.pick(0, 1, null, null), dataFromImage.pick(null, null, 1));
+    ndarray.ops.assign(dataProcessed.pick(0, 2, null, null), dataFromImage.pick(null, null, 0));
+    
   return dataProcessed.data;
 }
 
@@ -29,38 +57,74 @@ async function load_model(){
     EKOX("loading model")
     await session.loadModel('get_model')
     EKOX("model loaded");
+    load_model_button.innerHTML = "model loaded locally"   
 }
 
 async function local_predict() {
     // load image.
     const imageSize = 224;
     const imageLoader = new ImageLoader(imageSize, imageSize);
-    const imageData = await imageLoader.getImageData('./brocoli.jpg');
 
-    // preprocess the image data to match input dimension requirement, which is 1*3*224*224
+
     const width = 224; //imageSize;
     const height = 224; //imageSize;
+
+    let resizedCanvas = document.createElement('canvasrz');
+    resizedCanvas.width = width;
+    resizedCanvas.height = height;
+    let imageData = 0
+    if (1>0) { 
+        const imageLoader = new ImageLoader(imageSize, imageSize);
+        imageData = await imageLoader.getImageData('./blue.png');
+        //let image_data_url = imageLoader.canvas.toDataURL('image/jpeg');
+    } else {
+        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+        //let image_data_url = canvas.toDataURL('image/jpeg');
+        imageData = canvas.toDataURL('image/jpeg');
+    }
+
+
+    
+    //let resizedCtx = resizedCanvas.getContext('2d');
+    //resizedCtx.drawImage(canvas, 0, 0, width, height);
+    //const imageData = resizedCtx.getImageData(0, 0, width, height).data;
+    //canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    //const imageData = canvas.getContext('2d').getImageData(0, 0, width, height).data;    
+    //const imageData = await imageLoader.getImageData('./tomato.jpg');
+
+
+    // preprocess the image data to match input dimension requirement, which is 1*3*224*224
     const preprocessedData = preprocess(imageData.data, width, height);
     
     const inputTensor = new onnx.Tensor(preprocessedData, 'float32', [1, 3, width, height]);
     // Run model with Tensor inputs and get the result.
     const outputMap = await session.run([inputTensor]);
     const outputData = outputMap.values().next().value.data;
+
+    function softmax(arr) {
+        return arr.map(function(value,index) { 
+            return Math.exp(value) / arr.map( function(y /*value*/){ return Math.exp(y) } ).reduce( function(a,b){ return a+b })
+        })
+    }
+    EKOX(softmax(outputData))
+    var arr = outputData
+    var smarr = softmax(arr)
+    var imax = arr.indexOf(Math.max.apply(Math, arr));
+    EKOX(imax)
     
     // Render the output result in html.
     EKOX(outputData);
-    dataurl.value = outputData;
+
+    dataurl.value = "result:" + classes_array[imax] + " p=" + smarr[imax];
 }
 
 async function remote_predict() {
 
     const imageSize = 224;
-    //const imageLoader = new ImageLoader(imageSize, imageSize);
-    //const imageData = await imageLoader.getImageData('./brocoli.jpg');
-    //let image_data_url = imageLoader.canvas.toDataURL('image/jpeg');
-
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
     let image_data_url = canvas.toDataURL('image/jpeg');
+
     
     let data = JSON.stringify({image: image_data_url});
     const chunk = data.split(',').pop()
@@ -147,6 +211,22 @@ let dataurl = document.querySelector("#dataurl");
 let dataurl_container = document.querySelector("#dataurl-container");
 canvas.hidden = true;    
 camera_button.addEventListener('click', start_cam)
+
+
+let classes_area = document.querySelector("#classes");
+const response = await fetch('get_classes', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({})
+})
+EKOX('fetched');
+let classes_text = await response.text()
+EKOX(classes_text);
+let classes_array = classes_text.split(" ");
+EKOX(classes_array);
+
+classes_area.innerText = classes_array;
+
 
 let load_model_button = document.querySelector("#load-model");
 load_model_button.addEventListener('click', load_model)

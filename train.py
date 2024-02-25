@@ -104,6 +104,49 @@ class Vegetable :
     "mobilenet_v2" : (mobilenetf, 64),
   }
 
+  train_transform = transforms.Compose([
+    transforms.Resize(SIZE2),
+    #transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomVerticalFlip(p=0.5),
+    transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
+    transforms.RandomRotation(degrees=(30, 70),
+                              interpolation = transforms.InterpolationMode.BILINEAR ),
+    transforms.RandomResizedCrop(SIZE),
+    transforms.ToTensor(),
+    transforms.Normalize(
+      mean=[0.485, 0.456, 0.406],
+      std=[0.229, 0.224, 0.225])
+  ])
+
+  valid_transform = transforms.Compose([
+    transforms.Resize(SIZE2),
+    #transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
+    transforms.RandomResizedCrop(SIZE),      
+    transforms.ToTensor(),
+    transforms.Normalize(
+      mean=[0.485, 0.456, 0.406],
+      std=[0.229, 0.224, 0.225])
+  ])
+
+  valid_transform = transforms.Compose([
+    transforms.Resize(SIZE),
+    transforms.ToTensor(),
+    transforms.Normalize(
+      mean=[0.485, 0.456, 0.406],
+      std=[0.229, 0.224, 0.225])
+  ])
+
+  inference_transform  = transforms.Compose([
+    transforms.Resize(SIZE),
+    transforms.ToTensor(),
+    transforms.Normalize(
+      mean=[0.485, 0.456, 0.406],
+      std=[0.229, 0.224, 0.225])
+  ])
+  
+
+
   def __init__(self, gd = "/content/gdrive/MyDrive/data", use_gpu=True,
                model_name="mobilenet_v2",
                train_dir = None) :
@@ -117,6 +160,7 @@ class Vegetable :
 
   def get_model(self) :
     return mobilenet_v2 if self.model_name == "mobilenet_v2" else resnet50
+
   
   def load(self, model_name=None, disp=False) :
     gd = self.gd
@@ -126,57 +170,37 @@ class Vegetable :
     self.device = device = 'cpu' if not self.use_gpu else torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     
     EKOX(device)
-    train_transform = transforms.Compose([
-      transforms.Resize(SIZE2),
-      #transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),
-      transforms.RandomHorizontalFlip(p=0.5),
-      transforms.RandomVerticalFlip(p=0.5),
-      transforms.GaussianBlur(kernel_size=(5, 9), sigma=(0.1, 5)),
-      transforms.RandomRotation(degrees=(30, 70),
-                                interpolation = transforms.InterpolationMode.BILINEAR ),
-      transforms.RandomResizedCrop(SIZE),
-      transforms.ToTensor(),
-      transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225])
-    ])
+
     
-    valid_transform = self.valid_transform = transforms.Compose([
-      transforms.Resize(SIZE2),
-      #transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.),      
-      transforms.RandomResizedCrop(SIZE),      
-      transforms.ToTensor(),
-      transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225])
-    ])
+    t = self.t
+    _, batch_size = t[self.model_name]
 
-    valid_transform = self.valid_transform = transforms.Compose([
-      transforms.Resize(SIZE),
-      transforms.ToTensor(),
-      transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225])
-    ])
-
-    self.inference_transform = self.valid_transform = transforms.Compose([
-      transforms.Resize(SIZE),
-      transforms.ToTensor(),
-      transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225])
-    ])
 
     ds_train = ImageFolder(os.path.join(root, 'train'),
-                  transform=train_transform)
+                           transform=self.train_transform)
     ds_test = ImageFolder(os.path.join(root, 'test'),
-                  transform=valid_transform)
+                          transform=self.valid_transform)
     ds_valid = ImageFolder(os.path.join(root, 'validation'),
-                  transform=valid_transform)
+                           transform=self.valid_transform)
     ds_valid2 = ImageFolder(os.path.join(root, 'validation2'),
-                  transform=valid_transform)
+                            transform=self.valid_transform)
     self.class_to_idx = ds_train.class_to_idx
     self.idx_to_class = dict([ (v,k) for k,v in self.class_to_idx.items()])
+
+    classes = list(self.class_to_idx.keys())
+    EKOX(classes)
+    nmb_classes = len(classes)
+    EKOX(nmb_classes)
+    self.classes = classes
+    
+    model, classifier = t[self.model_name][0](nmb_classes)
+    model = model.to(device)
+    EKOX(self.model_name)
+    total_params = sum(param.numel() for param in model.parameters())
+    EKOX(total_params)    
+    total_params_train = sum(param.numel() for param in classifier.parameters())
+    EKOX(total_params_train)    
+
     
     EKO()
     #EKOX(model)
@@ -187,16 +211,7 @@ class Vegetable :
       plt.imshow(np.transpose(npimg, (1, 2, 0)))
       plt.show()
 
-    classes = list(self.class_to_idx.keys())
-    EKOX(classes)
-    nmb_classes = len(classes)
-    EKOX(nmb_classes)
-    self.classes = classes
-    
-    t = self.t
-    _, batch_size = t[self.model_name]
-    model, classifier = t[self.model_name][0](nmb_classes)
-
+    EKOT("building loader ..")
     train_loader_visu = torch.utils.data.DataLoader(ds_train, 
             batch_size=batch_size*4, shuffle=True,
             num_workers=4, pin_memory=True)
@@ -212,14 +227,8 @@ class Vegetable :
     valid_loadr2 = torch.utils.data.DataLoader(ds_valid2, 
             batch_size=batch_size, shuffle=True,
             num_workers=4, pin_memory=True)
-    
-    
-    model = model.to(device)
-    EKOX(self.model_name)
-    total_params = sum(param.numel() for param in model.parameters())
-    EKOX(total_params)    
-    total_params_train = sum(param.numel() for param in classifier.parameters())
-    EKOX(total_params_train)    
+
+
     # get some random training images
     dataiter = iter(train_loader_visu)
     images, labels = next(dataiter)
@@ -230,39 +239,53 @@ class Vegetable :
       EKO()
       print(' '.join(f'{self.idx_to_class[int(labels[j])]:5s}' for j in range(BATCH_SIZE)))      
       imshow(torchvision.utils.make_grid(images))
-      
+
     # print labels
 
     #EKOX(torchscan.summary(model), (3, SIZE, SIZE))
-    
+
     
     return model, train_loader, test_loader, valid_loadr, valid_loadr2, batch_size, classifier
 
   def read(self, epoch, model) :
-    path_to_read = os.path.join(self.gd, "models", "vegetables_%s_%03d.cpt" % (self.model_name, epoch))
+    path_to_read = os.path.join(self.gd, "models", "vegetables_%s_%s_%03d.cpt" % (dataset, self.model_name, epoch))
     EKOT("using ", path_to_read)
     state = torch.load(path_to_read, map_location=self.device)
     model.load_state_dict(state)
     #EKOX(model)
 
+  def get_classes(self) :
+    return list(self.class_to_idx.keys())
+    
   
-  def test(self, epoch=193, measure=True, disp=False) :
+  def test(self, epoch=193, measure=True, disp=False, test_dir=None) :
     """
     measure : faire le calcul de l'accuracy
     """
     EKO()
     model, train_loader, test_loader, valid_loader, valid_loader2, _, classifier = self.load(disp=disp)
+
+    
     EKO()
     self.read(epoch, model)
     EKO()
+    if test_dir is not None :
+
+      images = glob.glob("%s/*.jpg" % test_dir)
+      #EKOX(images)
+      for i in images :
+        lab, _, p = self.predict(model, Image.open(i))
+        EKOX((i, lab, self.classes[lab], p))
+      
     if measure :
-      #EKO(); self.measure(train_loader, model)
-      EKO(); self.measure(test_loader, model)
-      EKO(); self.measure(valid_loader, model)
-      EKO(); self.measure(valid_loader2, model)      
+      EKOT("train"); self.measure(train_loader, model)
+      EKOT("test"); self.measure(test_loader, model)
+      EKOT("valid"); self.measure(valid_loader, model)
+      EKO("valid2"); self.measure(valid_loader2, model)      
     return model
   
   def measure(self, loader, model) :
+    #EKOT(" testing %s" % loader)
     n = len(self.classes)
     confusion_table = np.zeros((n, n)).astype(int)
     device = self.device
@@ -296,8 +319,10 @@ class Vegetable :
     EKOX(accuracy)
     return accuracy
     
-  def predict(self, model, image) :
-    i = self.inference_transform(image)[None, ...]
+  def predict(self, model, image_to_predict) :
+    #EKOX(image_to_predict)
+
+    i = self.inference_transform(image_to_predict)[None, ...]
     #EKOX(i.shape)
     images = i.to(self.device)
     #EKOX(model)
@@ -405,11 +430,11 @@ def train(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
     v.train()
 
 
-def test(gd = "/content/gdrive/MyDrive/data", train_dir=None) :
+def test(gd = "/content/gdrive/MyDrive/data", train_dir=None, test_dir=None, model_name ="resnet50", epoch=193) :
   #v = Vegetable(gd, use_gpu=True, train_dir=train_dir)
   #v.test(46)
-  v = Vegetable(gd, model_name="resnet50", train_dir=train_dir, use_gpu=True)
-  v.test(measure=True)
+  v = Vegetable(gd, model_name=model_name, train_dir=train_dir, use_gpu=True)
+  v.test(measure=True, test_dir = test_dir, epoch=epoch)
 
 def predict(gd = "/content/gdrive/MyDrive/data") :
   v = Vegetable(gd, use_gpu=True)
