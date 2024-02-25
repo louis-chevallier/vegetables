@@ -71,7 +71,7 @@ class Vegetable :
       nn.Linear(2048, 512),
       nn.ReLU(), 
       nn.Linear(512, nmb_classes))
-    return model, model
+    return model, model.fc
 
   def efficientnetf(nmb_classes) :
     model = efficientnet_v2_m(weights="DEFAULT")
@@ -99,11 +99,10 @@ class Vegetable :
     #"resnet101" : (resnet101f, 32), 
     #"maxvit" : (maxvitf, 32),
     
-    #"mobilenet_v2" : (mobilenetf, 64),
     #"efficientnet_v2" : (efficientnetf, 32),
-    "resnet50" : (resnetf, 64)
+    "resnet50" : (resnetf, 64),
+    "mobilenet_v2" : (mobilenetf, 64),
   }
-
 
   def __init__(self, gd = "/content/gdrive/MyDrive/data", use_gpu=True,
                model_name="mobilenet_v2",
@@ -322,62 +321,75 @@ class Vegetable :
     
   def train(self) :
     gd = self.gd
-    model, train_loader, test_loader, valid_loader, valid_loader2, batch_size, classifier = self.load(model_name=self.model_name, disp=False)
+    modelg, train_loader, test_loader, valid_loader, valid_loader2, batch_size, classifier = self.load(model_name=self.model_name, disp=False)
     device = self.device
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(classifier.parameters(), lr=0.0001)
-    #optimizer = optim.NAdam(model.parameters(), lr=0.02)
-    EKOX(len(train_loader))
     accs, accs_train = [], []
-    with open("accuracies.txt", "w") as fd :
-      fd.write("\n".join(map(str, accs)))
     
-    for epoch in range(200):  # loop over the dataset multiple times
-      EKOX(epoch)
-      running_loss = 0.0
-      model.train()
-      model = model.to(self.device)
-      for i, data in enumerate(train_loader, 0):
-          # get the inputs; data is a list of [inputs, labels]
-          inputs, labels = data
-          inputs, labels = inputs.to(device), labels.to(device)
-          # zero the parameter gradients
-          optimizer.zero_grad()
+    def phase(submodel, lr, start_epoch, end_epoch) :
+      """
+      on entraine la partie terminale du reseau puis tout le reseau
+      """
+      optimizer = optim.Adam(submodel.parameters(), lr=lr)
+      #optimizer = optim.NAdam(model.parameters(), lr=0.02)
+      EKOX(len(train_loader))
 
-          # forward + backward + optimize
-          outputs = model(inputs)
-          loss = criterion(outputs, labels)
-          loss.backward()
-          optimizer.step()
+      with open("accuracies.txt", "w") as fd :
+        fd.write("\n".join(map(str, accs)))
 
-          # print statistics
-          running_loss += loss.item()
-          if i % 200 == 0:    # print every 200 mini-batches
-              EKOT(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 200:.3f}')
-              running_loss = 0.0
+      for epoch in range(start_epoch, end_epoch):  # loop over the dataset multiple times
+        EKOX(epoch)
+        running_loss = 0.0
+        modelg.train()
+        modelgg = modelg.to(self.device)
+        for i, data in enumerate(train_loader, 0):
+            # get the inputs; data is a list of [inputs, labels]
+            inputs, labels = data
+            inputs, labels = inputs.to(device), labels.to(device)
+            # zero the parameter gradients
+            optimizer.zero_grad()
 
-      accs_train.append(self.measure(train_loader, model))
-      accs.append(self.measure(test_loader, model))
-      self.measure(valid_loader2, model)
-      self.measure(valid_loader, model)
+            # forward + backward + optimize
+            outputs = modelgg(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-      
-      os.makedirs( os.path.join(gd, "models"), exist_ok=True)
-      torch.save(model.state_dict(), os.path.join(gd, "models", "vegetables_%s_%s_%03d.cpt" % (dataset, self.model_name, epoch)))
-      model = model.to('cpu')
-      model.eval()
-      x = torch.randn(BATCH_SIZE, 3, 224, 224, requires_grad=True)
-      torch_out = model(x)
-      torch.onnx.export(model,
-                        x,                        
-                        os.path.join(gd, "models", "vegetables_%s_%s_%03d.onnx" % (dataset, self.model_name, epoch)),
-                        export_params=True, 
-                        opset_version=10,
-                        do_constant_folding=True, 
-                        input_names = ['input'],  
-                        output_names = ['output'],
-                        dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
-                                      'output' : {0 : 'batch_size'}})
+            # print statistics
+            running_loss += loss.item()
+            if i % 200 == 0:    # print every 200 mini-batches
+                EKOT(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 200:.3f}')
+                running_loss = 0.0
+
+        accs_train.append(self.measure(train_loader, modelgg))
+        accs.append(self.measure(test_loader, modelgg))
+        self.measure(valid_loader2, modelgg)
+        self.measure(valid_loader, modelgg)
+
+
+        os.makedirs( os.path.join(gd, "models"), exist_ok=True)
+        torch.save(modelgg.state_dict(), os.path.join(gd, "models", "vegetables_%s_%s_%03d.cpt" % (dataset, self.model_name, epoch)))
+        modelggg = modelgg.to('cpu')
+        modelggg.eval()
+        x = torch.randn(BATCH_SIZE, 3, 224, 224, requires_grad=True)
+        torch_out = modelggg(x)
+        torch.onnx.export(modelggg,
+                          x,                        
+                          os.path.join(gd, "models", "vegetables_%s_%s_%03d.onnx" % (dataset, self.model_name, epoch)),
+                          export_params=True, 
+                          opset_version=10,
+                          do_constant_folding=True, 
+                          input_names = ['input'],  
+                          output_names = ['output'],
+                          dynamic_axes={'input' : {0 : 'batch_size'},    # variable length axes
+                                        'output' : {0 : 'batch_size'}})
+
+
+    phase(classifier, 0.0001, 0, 200)
+    EKO()
+    phase(modelg, 0.00001, 200, 300) 
+    EKO()
+        
     with open("accuracies_%s.txt" % self.model_name, "w") as fd :
       fd.write("\n".join(map(str, accs)))
     with open("accuracies_train_%s.txt" % self.model_name, "w") as fd :

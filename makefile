@@ -4,7 +4,7 @@ SHELL=bash
 export GITINFO=$(shell git log --pretty=format:"%h - %an, %ar : %s" -1)
 
 train :
-	python -c 'import train; train.train("/mnt/hd1/data")'
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.train("/mnt/hd1/data")' 2>&1 | tee trcs/$(@)_$(DATE).trc
 
 start :
 	mkdir -p trcs
