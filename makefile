@@ -6,7 +6,9 @@ export GITINFO=$(shell git log --pretty=format:"%h - %an, %ar : %s" -1)
 train :
 	python -c 'import train; train.train("/mnt/hd1/data")'
 
-start :
+start : test
+
+start1 :
 	mkdir -p trcs
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.train("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")' 2>&1 | tee trcs/$(@)_$(DATE).trc
 #	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")'
@@ -19,12 +21,12 @@ server :
 	CUDA_AVAILABLE_DEVICES=0  python -c 'import server; server.go("/mnt/hd1/data")'
 
 test :
-	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", train_dir="/mnt/hd1/data")'
-
+#	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="resnet50")' 2>&1 | tee trcs/$(@)_1_$(DATE).trc
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="mobilenet_v2")' 2>&1 | tee trcs/$(@)_2_$(DATE).trc
 
 run :
 	date
-	source ${HOME}/scripts/.bashrc; spy; pyenv; make server_nuc
+	source ${HOME}/scripts/.bashrc; spy; pyenv; USER=LOUIS PORT=8094 make server_nuc
 
 server_nuc :
 	python -c 'import server; server.go("/media/usb-seagate2/data/vegetables")'
