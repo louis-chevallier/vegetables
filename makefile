@@ -20,8 +20,8 @@ $(warning $(GITINFO))
 server :
 	CUDA_AVAILABLE_DEVICES=0  python -c 'import server; server.go("/mnt/hd1/data")'
 
-test :
-#	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="resnet50")' 2>&1 | tee trcs/$(@)_1_$(DATE).trc
+test_NUC :
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="resnet50", epoch=298)' 2>&1 | tee trcs/$(@)_1_$(DATE).trc
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="mobilenet_v2", epoch=146)' 2>&1 | tee trcs/$(@)_2_$(DATE).trc
 
 test_tour :

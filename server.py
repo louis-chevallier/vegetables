@@ -72,7 +72,7 @@ class App:
         self.no_image = 0
         self.gd = gd
         v = self.vegetable = train.Vegetable(gd, use_gpu=True, model_name="resnet50", train_dir=train_dir)
-        self.model = model = v.test(measure=False, disp=False)
+        self.model = model = v.test(measure=False, disp=False, epoch=298)
         model.eval()
         v.predict(model, Image.open('brocoli.jpg'))
         EKOX(self.get_next_image_num())
@@ -97,7 +97,7 @@ class App:
             return data
 
     @cherrypy.expose
-    def get_model(self, number=190):
+    def get_model(self, number=149):
         EKOT("REQ model")
         fn = os.path.join(self.gd, "models", "vegetables_FruitsVegetables_mobilenet_v2_%03d.onnx" % number)
         EKOX(fn)
