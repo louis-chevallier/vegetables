@@ -48,7 +48,7 @@ class Vegetable :
       nn.Linear(512, nmb_classes))
     
     #model.classifier[1] = nn.Linear(1280, nmb_classes)
-    EKOX(model)
+    #EKOX(model)
     return model, model.classifier
 
   def resnet101f(nmb_classes) :

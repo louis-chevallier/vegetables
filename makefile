@@ -6,7 +6,7 @@ export GITINFO=$(shell git log --pretty=format:"%h - %an, %ar : %s" -1)
 train :
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.train("/mnt/hd1/data")' 2>&1 | tee trcs/$(@)_$(DATE).trc
 
-start : test
+start : test_tour
 
 start1 :
 	mkdir -p trcs
@@ -22,7 +22,11 @@ server :
 
 test :
 #	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="resnet50")' 2>&1 | tee trcs/$(@)_1_$(DATE).trc
-	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="mobilenet_v2")' 2>&1 | tee trcs/$(@)_2_$(DATE).trc
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/media/usb-seagate2/data/vegetables", test_dir="./tests", model_name="mobilenet_v2", epoch=146)' 2>&1 | tee trcs/$(@)_2_$(DATE).trc
+
+test_tour :
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", test_dir="/mnt/NUC/dev/git/vegetables/tests", model_name="resnet50", epoch=298)' 2>&1 | tee trcs/$(@)_1_$(DATE).trc
+	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", test_dir="/mnt/NUC/dev/git/vegetables/tests", model_name="mobilenet_v2", epoch=149)' 2>&1 | tee trcs/$(@)_2_$(DATE).trc
 
 run :
 	date
