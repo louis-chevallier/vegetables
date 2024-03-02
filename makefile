@@ -28,11 +28,11 @@ test_tour :
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", test_dir="/mnt/NUC/dev/git/vegetables/tests", model_name="resnet50", epoch=298)' 2>&1 | tee trcs/$(@)_1_$(DATE).trc
 	CUDA_AVAILABLE_DEVICES=0 python -c 'import train; train.test("/mnt/NUC/data/vegetables", test_dir="/mnt/NUC/dev/git/vegetables/tests", model_name="mobilenet_v2", epoch=149)' 2>&1 | tee trcs/$(@)_2_$(DATE).trc
 
-run :
+run : k
 	date
 	source ${HOME}/scripts/.bashrc; spy; pyenv; USER=LOUIS PORT=8094 make server_nuc
 
-server_nuc :
+server_nuc : key
 	python -c 'import server; server.go("/media/usb-seagate2/data/vegetables")'
 
 commit_push :

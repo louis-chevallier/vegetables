@@ -53,7 +53,7 @@ config = {
       'server.socket_host' : '0.0.0.0', #192.168.1.5', #'127.0.0.1',
       'server.socket_port' : port,
       'server.thread_pool' : 1,
-      'log.screen': False,
+      'log.screen': True,
       'log.error_file': './error.log',
       'log.access_file': './access.log'
   },
@@ -137,7 +137,7 @@ class App:
     @cherrypy.expose
     def chunk(self, data=None) :
         EKOT("received chunk")
-        EKOX(data);
+        #EKOX(data);
         try :
             fn = "tests/test_%04d.jpg" % self.get_next_image_num()
             self.no_image += 1
